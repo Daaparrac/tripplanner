@@ -1,0 +1,139 @@
+<div class="app-container">
+  <!-- ═══════════════════════════════════════════════════════
+       NAVBAR SUPERIOR (Desktop + Mobile Header)
+  ═══════════════════════════════════════════════════════ -->
+  <header class="app-nav" aria-label="Cabecera de la aplicación">
+    <div class="app-brand">
+      <span class="brand-flag" aria-hidden="true">🇲🇽</span>
+      <div class="brand-text">
+        <span class="brand-title">México 2025</span>
+        <span class="brand-badge">Dani ❤️ Mafe 🫰</span>
+      </div>
+    </div>
+
+    <div class="nav-right-actions">
+      <!-- Desktop Navigation Links (ocultos en móvil) -->
+      <nav class="nav-links nav-links--desktop" aria-label="Navegación de escritorio">
+        <a
+          routerLink="/map"
+          routerLinkActive="nav-link--active"
+          class="nav-link"
+          aria-label="Ir al mapa interactivo"
+        >
+          <span class="nav-icon" aria-hidden="true">🗺️</span>
+          <span class="nav-label">Mapa Interactivo</span>
+        </a>
+        <a
+          routerLink="/itinerary"
+          routerLinkActive="nav-link--active"
+          class="nav-link"
+          aria-label="Ir al tablero de itinerario"
+        >
+          <span class="nav-icon" aria-hidden="true">📋</span>
+          <span class="nav-label">Itinerario Kanban</span>
+        </a>
+      </nav>
+
+      <!-- Selector de Tema (OLED Black / Claro / Automático) -->
+      <div class="theme-selector" role="group" aria-label="Selector de tema">
+        <button
+          type="button"
+          class="btn-theme-pill"
+          [class.btn-theme-pill--active]="themeMode === 'dark'"
+          (click)="setTheme('dark')"
+          title="Modo Oscuro OLED (Negro absoluto #000000 para ahorrar batería)"
+          aria-label="Activar modo oscuro OLED"
+        >
+          🌙 <span class="theme-pill-label">OLED</span>
+        </button>
+        <button
+          type="button"
+          class="btn-theme-pill"
+          [class.btn-theme-pill--active]="themeMode === 'light'"
+          (click)="setTheme('light')"
+          title="Modo Claro"
+          aria-label="Activar modo claro"
+        >
+          ☀️ <span class="theme-pill-label">Claro</span>
+        </button>
+        <button
+          type="button"
+          class="btn-theme-pill"
+          [class.btn-theme-pill--active]="themeMode === 'auto'"
+          (click)="setTheme('auto')"
+          title="Automático según el sistema"
+          aria-label="Activar modo automático según dispositivo"
+        >
+          ⚙️ <span class="theme-pill-label">Auto</span>
+        </button>
+      </div>
+
+      <!-- Widget de Usuario / Google OAuth -->
+      <div class="user-auth-widget">
+        @if (authService.currentUser(); as user) {
+          <div class="user-profile-badge" [class]="'badge--' + user.role.toLowerCase()" [title]="user.name + ' (' + user.email + ')'">
+            <span class="user-badge-emoji">{{ user.emoji }}</span>
+            <span class="user-badge-name">{{ user.name }}</span>
+            <button
+              type="button"
+              class="btn-logout"
+              (click)="authService.logout()"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión">
+              ✕
+            </button>
+          </div>
+        } @else {
+          <button
+            type="button"
+            class="btn-login"
+            (click)="authService.openLoginModal()"
+            title="Iniciar sesión con Google"
+            aria-label="Iniciar sesión">
+            <span class="login-icon">👤</span>
+            <span class="login-text">Ingresar</span>
+          </button>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       VISTA ACTIVA (Router Outlet)
+  ═══════════════════════════════════════════════════════ -->
+  <main class="app-content">
+    <router-outlet></router-outlet>
+  </main>
+
+  <!-- Modal de Autenticación / Google Login -->
+  <app-login-modal></app-login-modal>
+
+  <!-- ═══════════════════════════════════════════════════════
+       BOTTOM TAB BAR NATIVO PARA MÓVILES (S25 Ultra & iPhone 17)
+  ═══════════════════════════════════════════════════════ -->
+  <nav class="mobile-tab-bar" aria-label="Navegación móvil inferior">
+    <a
+      routerLink="/map"
+      routerLinkActive="mobile-tab--active"
+      class="mobile-tab"
+      aria-label="Abrir mapa de viaje"
+    >
+      <div class="mobile-tab-icon-wrapper">
+        <span class="mobile-tab-icon" aria-hidden="true">🗺️</span>
+      </div>
+      <span class="mobile-tab-label">Mapa</span>
+    </a>
+
+    <a
+      routerLink="/itinerary"
+      routerLinkActive="mobile-tab--active"
+      class="mobile-tab"
+      aria-label="Abrir itinerario Kanban"
+    >
+      <div class="mobile-tab-icon-wrapper">
+        <span class="mobile-tab-icon" aria-hidden="true">📋</span>
+      </div>
+      <span class="mobile-tab-label">Itinerario</span>
+    </a>
+  </nav>
+</div>

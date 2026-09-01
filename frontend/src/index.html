@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Trip Planner México 🇲🇽</title>
+    <base href="/" />
+    
+    <!-- Configuración dinámica inyectada por Docker -->
+    <script src="assets/env.js"></script>
+    
+    <!-- Mobile & PWA Viewport Configuration (Optimized for S25 Ultra & iPhone 17) -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="description" content="Planificador colaborativo e itinerario interactivo de viaje a México — Daniel &amp; Mafe" />
+    <meta name="theme-color" content="#07090f" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- Web App Manifest (PWA) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS / Apple Web App Capabilities -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="México 2025" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+
+    <!--
+      GOOGLE MAPS JAVASCRIPT API
+      APIs requeridas: Maps JS, Places, Directions, Distance Matrix, Geometry
+    -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_5dJEVSBcapLoKSOpRaUEk9YL2NEsP9o&libraries=places,geometry&language=es&region=MX&loading=async"
+      defer
+    ></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <app-root></app-root>
+
+    <!-- Service Worker Registration for PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((reg) => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch((err) => console.warn('[PWA] Registro SW falló:', err));
+        });
+      }
+    </script>
+  </body>
+</html>

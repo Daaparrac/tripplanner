@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Trip Planner México 🗺️</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Planificador colaborativo de viaje a México — Daniel &amp; Mafe" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <!--
+      ╔══════════════════════════════════════════════════════════════════╗
+      ║              GOOGLE MAPS JAVASCRIPT API                          ║
+      ║                                                                  ║
+      ║  Librerías cargadas:                                             ║
+      ║  · places    → Places Autocomplete para el buscador             ║
+      ║  · geometry  → Cálculos de distancia esférica en cliente        ║
+      ║                                                                  ║
+      ║  Parámetros:                                                     ║
+      ║  · language=es   → Nombres de lugares en español                ║
+      ║  · region=MX     → Resultados priorizados para México           ║
+      ║  · loading=async → Carga no bloqueante (obligatorio desde 2024) ║
+      ║                                                                  ║
+      ║  ⚠️  Reemplaza YOUR_GOOGLE_MAPS_API_KEY con tu API Key.         ║
+      ║      Obtenerla: console.cloud.google.com                        ║
+      ║      APIs requeridas:                                           ║
+      ║        - Maps JavaScript API                                    ║
+      ║        - Places API                                             ║
+      ║        - Directions API                                         ║
+      ║        - Distance Matrix API                                    ║
+      ╚══════════════════════════════════════════════════════════════════╝
+    -->
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places,geometry&language=es&region=MX&loading=async"
+      defer
+    ></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

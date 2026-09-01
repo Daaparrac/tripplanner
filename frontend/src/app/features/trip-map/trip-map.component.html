@@ -1,0 +1,671 @@
+<section class="trip-map-layout" aria-label="Mapa interactivo del itinerario">
+
+  <!-- ── Barra de Segmentación Táctil para Móviles (S25 Ultra / iPhone 17) ── -->
+  <div class="mobile-view-toggle" role="tablist" aria-label="Alternar vista móvil">
+    <button
+      type="button"
+      role="tab"
+      class="mobile-toggle-btn"
+      [class.mobile-toggle-btn--active]="mobileViewMode() === 'map'"
+      (click)="setMobileViewMode('map')"
+      aria-label="Ver mapa en pantalla completa">
+      🗺️ Mapa
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="mobile-toggle-btn"
+      [class.mobile-toggle-btn--active]="mobileViewMode() === 'panel'"
+      (click)="setMobileViewMode('panel')"
+      aria-label="Ver lista de lugares y búsqueda">
+      📋 Lugares ({{ items().length }})
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       PANEL LATERAL — Sidebar glassmorphism
+  ═══════════════════════════════════════════════════════ -->
+  <aside
+    class="map-sidebar"
+    [class.mobile-sidebar-hidden]="mobileViewMode() === 'map'"
+    aria-label="Panel de planificación">
+
+    <!-- Header -->
+    <header class="sidebar-header">
+      <div class="trip-badge">
+        <span class="trip-flag">🇲🇽</span>
+        <div class="trip-info">
+          <h1 class="trip-title">México 2025</h1>
+          <p class="trip-dates">Oct 23 – Nov 11</p>
+        </div>
+      </div>
+
+      <!-- Leyenda de tipos -->
+      <div class="legend" aria-label="Leyenda de actividades">
+        @for (entry of typeEntries; track entry[0]) {
+          <span class="legend-item" [style.--dot-color]="entry[1].color">
+            {{ entry[1].emoji }} {{ entry[1].label }}
+          </span>
+        }
+      </div>
+    </header>
+
+    <!-- ── Selector de Fecha ─────────────────────────────── -->
+    <div class="section">
+      <label class="section-label" for="dateInput">📅 Día del itinerario</label>
+      <input
+        id="dateInput"
+        type="date"
+        class="date-input"
+        [value]="selectedDate()"
+        [min]="minDate"
+        [max]="maxDate"
+        (change)="onDateChange($event)"
+        aria-label="Seleccionar fecha del itinerario"
+      />
+
+      <!-- Estadísticas del día -->
+      @if (dayStats().totalItems > 0) {
+        <div class="day-stats" role="status" aria-live="polite">
+          <span class="stat">{{ dayStats().totalItems }} lugares</span>
+          <span class="stat-dot" [style.background]="getItemColor('SHARED')"></span>
+          <span class="stat">{{ dayStats().sharedCount }}</span>
+          <span class="stat-dot" [style.background]="getItemColor('SOLO_DANIEL')"></span>
+          <span class="stat">{{ dayStats().danielCount }}</span>
+          <span class="stat-dot" [style.background]="getItemColor('SOLO_MAFE')"></span>
+          <span class="stat">{{ dayStats().mafeCount }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- ── Buscador con Places Autocomplete ──────────────── -->
+    <div class="section">
+      <label class="section-label" for="searchInput">🔍 Añadir lugar</label>
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input
+          #searchInput
+          id="searchInput"
+          type="text"
+          class="places-input"
+          placeholder="Restaurante, museo, hotel..."
+          aria-label="Buscar lugar en México"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Preview del lugar seleccionado con formulario completo -->
+      @if (selectedPlace()) {
+        <div class="place-preview" role="region" aria-label="Lugar seleccionado">
+          <div class="place-preview-header">
+            <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <div class="place-preview-info">
+              <h4 class="place-name">{{ selectedPlace()!.placeName }}</h4>
+              <p class="place-address">{{ selectedPlace()!.placeAddress }}</p>
+            </div>
+            <button
+              class="btn-close-preview"
+              (click)="cancelPlaceSelection()"
+              title="Cancelar selección"
+              aria-label="Cerrar selección">
+              ×
+            </button>
+          </div>
+
+          <!-- Selector de Modo: Programar Fecha vs Guardar para Kanban -->
+          <div class="mode-toggle-group">
+            <button
+              type="button"
+              class="mode-toggle-btn"
+              [class.mode-toggle-btn--active]="formMode === 'SCHEDULED'"
+              (click)="setFormMode('SCHEDULED')">
+              📅 Programar día
+            </button>
+            <button
+              type="button"
+              class="mode-toggle-btn"
+              [class.mode-toggle-btn--active]="formMode === 'SAVED'"
+              (click)="setFormMode('SAVED')">
+              📌 Guardar (Kanban)
+            </button>
+          </div>
+
+          <!-- Campos cuando se programa en una fecha -->
+          @if (formMode === 'SCHEDULED') {
+            <div class="form-row">
+              <div class="form-field form-field--half">
+                <label class="form-label" for="formDateInput">Fecha</label>
+                <input
+                  id="formDateInput"
+                  type="date"
+                  class="form-input"
+                  [(ngModel)]="formDate"
+                  [min]="minDate"
+                  [max]="maxDate"
+                />
+              </div>
+
+              <div class="form-field form-field--half">
+                <label class="form-label" for="formTimeInput">Hora (opcional)</label>
+                <input
+                  id="formTimeInput"
+                  type="time"
+                  class="form-input"
+                  [(ngModel)]="formTime"
+                />
+              </div>
+            </div>
+          }
+
+          <!-- Selección de tipo de actividad / participante -->
+          <div class="form-field">
+            <label class="form-label">Participante / Tipo</label>
+            <div class="place-type-buttons">
+              <button
+                type="button"
+                class="type-btn type-shared"
+                [class.type-btn--selected]="formType === 'SHARED'"
+                (click)="setFormType('SHARED')">
+                👥 Compartida
+              </button>
+              <button
+                type="button"
+                class="type-btn type-daniel"
+                [class.type-btn--selected]="formType === 'SOLO_DANIEL'"
+                (click)="setFormType('SOLO_DANIEL')">
+                🧑 Daniel
+              </button>
+              <button
+                type="button"
+                class="type-btn type-mafe"
+                [class.type-btn--selected]="formType === 'SOLO_MAFE'"
+                (click)="setFormType('SOLO_MAFE')">
+                👩 Mafe
+              </button>
+            </div>
+          </div>
+
+          <!-- Notas opcionales -->
+          <div class="form-field">
+            <label class="form-label" for="formNotesInput">Notas (opcional)</label>
+            <input
+              id="formNotesInput"
+              type="text"
+              class="form-input"
+              [(ngModel)]="formNotes"
+              placeholder="Ej: Reservar con anticipación, probar tacos..."
+            />
+          </div>
+
+          <!-- Botón de guardar -->
+          <div class="form-actions">
+            <button
+              type="button"
+              class="btn-submit-place"
+              (click)="submitPlace()"
+              [disabled]="isSaving()">
+              @if (isSaving()) {
+                <span class="spinner"></span> Guardando...
+              } @else {
+                {{ formMode === 'SCHEDULED' ? '✓ Añadir al Itinerario' : '📌 Guardar Lugar' }}
+              }
+            </button>
+            <button
+              type="button"
+              class="btn-cancel-place"
+              (click)="cancelPlaceSelection()"
+              [disabled]="isSaving()">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- ── Lista de Actividades del día ──────────────────── -->
+    <div class="section section--scrollable">
+      <div class="section-header-row">
+        <label class="section-label">📋 Actividades</label>
+        <div class="action-buttons">
+          <button
+            class="btn-route"
+            (click)="buildRoute()"
+            [disabled]="items().length < 2 || isLoadingRoute()"
+            aria-label="Trazar ruta del día">
+            @if (isLoadingRoute()) {
+              <span class="spinner"></span> Cargando...
+            } @else {
+              🛣️ Trazar ruta
+            }
+          </button>
+          <button
+            class="btn-proximity"
+            (click)="checkProximity()"
+            [disabled]="items().length < 2"
+            aria-label="Verificar distancias entre actividades individuales">
+            📍 Verificar
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Notificación / Alerta de Proximidad (Colocada arriba para visibilidad inmediata) ── -->
+      @if (proximityStatus()) {
+        <div
+          class="proximity-status-box"
+          [class.proximity-status-box--success]="proximityStatus()!.type === 'success'"
+          [class.proximity-status-box--warning]="proximityStatus()!.type === 'warning'"
+          [class.proximity-status-box--info]="proximityStatus()!.type === 'info'"
+          role="alert">
+
+          <div class="proximity-status-header">
+            <span class="status-msg-title">{{ proximityStatus()!.message }}</span>
+            <button
+              type="button"
+              class="btn-close-status"
+              (click)="clearProximityStatus()"
+              title="Cerrar"
+              aria-label="Cerrar notificación">
+              ×
+            </button>
+          </div>
+
+          @if (proximityStatus()!.distanceSummary) {
+            <p class="status-summary-text">{{ proximityStatus()!.distanceSummary }}</p>
+          }
+
+          <!-- Tarjetas detalladas de alertas si existen conflictos -->
+          @if (proximityAlerts().length > 0) {
+            <div class="alerts-list">
+              @for (alert of proximityAlerts(); track alert.danielItem.id) {
+                <div class="alert-card">
+                  <div class="alert-participants">
+                    <span class="alert-participant daniel">🧑 {{ alert.danielItem.placeName }}</span>
+                    <span class="alert-vs">vs</span>
+                    <span class="alert-participant mafe">👩 {{ alert.mafeItem.placeName }}</span>
+                  </div>
+                  <div class="alert-distance">
+                    <span class="distance-value">{{ alert.distanceKm | number:'1.1-1' }} km</span>
+                    <span class="distance-time">· {{ alert.durationText }}</span>
+                  </div>
+                  <p class="alert-message">{{ alert.message }}</p>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <ul class="activities-list" role="list" aria-label="Lista de actividades del día">
+        @for (item of items(); track item.id; let i = $index) {
+          <li
+            class="activity-card"
+            [class.activity-card--active]="activeItem()?.id === item.id"
+            [style.--type-color]="getItemColor(item.type)"
+            (click)="onMarkerClick(item)"
+            role="button"
+            [attr.aria-label]="'Ir a ' + item.placeName"
+            tabindex="0"
+            (keydown.enter)="onMarkerClick(item)">
+
+            <span class="activity-index">{{ i + 1 }}</span>
+
+            <div class="activity-type-dot" [style.background]="getItemColor(item.type)">
+              {{ getTypeEmoji(item.type) }}
+            </div>
+
+            <div class="activity-details">
+              <span class="activity-place-name">{{ item.placeName }}</span>
+              <div class="activity-meta">
+                <span class="activity-time">⏰ {{ formatTime(item.dateTime) }}</span>
+                <span class="activity-duration">⏱ {{ item.durationMinutes }} min</span>
+                <span class="activity-type-badge" [style.background]="getItemColor(item.type) + '22'" [style.color]="getItemColor(item.type)">
+                  {{ getTypeLabel(item.type) }}
+                </span>
+              </div>
+              @if (item.notes) {
+                <span class="activity-notes">📝 {{ item.notes }}</span>
+              }
+            </div>
+
+            <!-- Botones de Acción de la Actividad: Editar y Eliminar -->
+            <div class="activity-card-actions">
+              <button
+                type="button"
+                class="btn-card-action btn-edit"
+                (click)="openEditModal(item, $event)"
+                title="Editar actividad"
+                aria-label="Editar">
+                ✏️
+              </button>
+              <button
+                type="button"
+                class="btn-card-action btn-delete"
+                (click)="openDeleteModal(item, $event)"
+                [disabled]="isDeleting() === item.id"
+                title="Eliminar actividad"
+                aria-label="Eliminar">
+                @if (isDeleting() === item.id) {
+                  <span class="mini-spinner"></span>
+                } @else {
+                  🗑️
+                }
+              </button>
+            </div>
+          </li>
+        } @empty {
+          <li class="empty-activities">
+            <span class="empty-icon">🗺️</span>
+            <p>Sin actividades para este día.</p>
+            <p class="empty-hint">Usa el buscador para añadir lugares.</p>
+          </li>
+        }
+      </ul>
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MAPA PRINCIPAL
+  ═══════════════════════════════════════════════════════ -->
+  <div
+    class="map-wrapper"
+    [class.mobile-map-hidden]="mobileViewMode() === 'panel'"
+    role="main"
+    aria-label="Mapa interactivo">
+
+    <google-map
+      #googleMapRef
+      height="100%"
+      width="100%"
+      [center]="center()"
+      [zoom]="zoom()"
+      [options]="mapOptions()"
+      aria-label="Mapa de Google con actividades del itinerario">
+
+      <!-- Marcadores SVG por tipo de actividad -->
+      @for (marker of markerConfigs(); track marker.item.id) {
+        <map-marker
+          [position]="marker.position"
+          [options]="marker.options"
+          (mapClick)="onMarkerClick(marker.item)"
+          [attr.aria-label]="marker.item.placeName">
+        </map-marker>
+      }
+
+      <!-- Marcador de Ubicación Actual en Vivo (GPS) -->
+      @if (userLocation()) {
+        <map-marker
+          [position]="userLocation()!"
+          [options]="userMarkerOptions()">
+        </map-marker>
+      }
+
+      <!-- Ruta diaria trazada -->
+      @if (directionsResult()) {
+        <map-directions-renderer
+          [directions]="directionsResult()!"
+          [options]="rendererOptions">
+        </map-directions-renderer>
+      }
+
+    </google-map>
+
+    <!-- Botón Flotante de Mi Ubicación GPS -->
+    <button
+      type="button"
+      class="btn-floating-gps"
+      [class.btn-floating-gps--active]="userLocation() !== null"
+      (click)="locateUser(true)"
+      [disabled]="isLocating()"
+      title="Centrar en mi ubicación actual (GPS)"
+      aria-label="Centrar en mi ubicación actual">
+      @if (isLocating()) {
+        <span class="mini-spinner"></span>
+      } @else {
+        🎯
+      }
+    </button>
+
+    @if (locationError()) {
+      <div class="gps-error-toast" role="alert">
+        <span>⚠️ {{ locationError() }}</span>
+        <button type="button" class="btn-close-toast" (click)="locationError.set(null)">×</button>
+      </div>
+    }
+
+    <!-- Tooltip flotante del marcador activo -->
+    @if (activeItem()) {
+      <div
+        class="marker-tooltip"
+        role="dialog"
+        aria-label="Información del lugar"
+        aria-modal="true">
+
+        <button
+          class="tooltip-close"
+          (click)="activeItem.set(null)"
+          aria-label="Cerrar información">
+          ×
+        </button>
+
+        <div class="tooltip-type-bar" [style.background]="getItemColor(activeItem()!.type)"></div>
+
+        <div class="tooltip-body">
+          <span class="tooltip-emoji">{{ getTypeEmoji(activeItem()!.type) }}</span>
+          <h4 class="tooltip-place-name">{{ activeItem()!.placeName }}</h4>
+          <p class="tooltip-address">{{ activeItem()!.placeAddress }}</p>
+
+          <div class="tooltip-meta">
+            <span class="tooltip-time">⏰ {{ formatTime(activeItem()!.dateTime) }}</span>
+            <span class="tooltip-duration">⏱ {{ activeItem()!.durationMinutes }} min</span>
+          </div>
+
+          <span
+            class="tooltip-badge"
+            [style.background]="getItemColor(activeItem()!.type) + '22'"
+            [style.color]="getItemColor(activeItem()!.type)">
+            {{ getTypeLabel(activeItem()!.type) }}
+          </span>
+
+          @if (activeItem()!.notes) {
+            <p class="tooltip-notes">📝 {{ activeItem()!.notes }}</p>
+          }
+
+          <!-- Botones de Acción en el Tooltip -->
+          <div class="tooltip-actions">
+            <button
+              type="button"
+              class="btn-tooltip-action btn-tooltip-edit"
+              (click)="openEditModal(activeItem()!)">
+              ✏️ Editar
+            </button>
+            <button
+              type="button"
+              class="btn-tooltip-action btn-tooltip-delete"
+              (click)="openDeleteModal(activeItem()!)">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Indicador de ruta activa -->
+    @if (directionsResult()) {
+      <div class="route-badge" role="status">
+        🛣️ Ruta del día activa
+        <button class="route-clear" (click)="directionsResult.set(null)" aria-label="Limpiar ruta">×</button>
+      </div>
+    }
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MODAL DE EDICIÓN DE ACTIVIDAD
+  ═══════════════════════════════════════════════════════ -->
+  @if (editingItem()) {
+    <div class="edit-modal-backdrop" (click)="closeEditModal()">
+      <div class="edit-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Editar actividad">
+        <div class="edit-modal-header">
+          <h3 class="edit-modal-title">✏️ Editar Actividad</h3>
+          <button class="btn-close-modal" (click)="closeEditModal()" aria-label="Cerrar modal">×</button>
+        </div>
+
+        <div class="edit-modal-body">
+          <div class="edit-place-summary">
+            <h4 class="summary-place-name">{{ editingItem()!.placeName }}</h4>
+            <p class="summary-place-address">{{ editingItem()!.placeAddress }}</p>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field form-field--half">
+              <label class="form-label" for="editDate">Fecha</label>
+              <input
+                id="editDate"
+                type="date"
+                class="form-input"
+                [(ngModel)]="editFormDate"
+                [min]="minDate"
+                [max]="maxDate"
+              />
+            </div>
+
+            <div class="form-field form-field--half">
+              <label class="form-label" for="editTime">Hora</label>
+              <input
+                id="editTime"
+                type="time"
+                class="form-input"
+                [(ngModel)]="editFormTime"
+              />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label" for="editDuration">Duración (minutos)</label>
+            <input
+              id="editDuration"
+              type="number"
+              class="form-input"
+              [(ngModel)]="editFormDuration"
+              min="15"
+              step="15"
+            />
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Participante / Tipo</label>
+            <div class="place-type-buttons">
+              <button
+                type="button"
+                class="type-btn type-shared"
+                [class.type-btn--selected]="editFormType === 'SHARED'"
+                (click)="setEditFormType('SHARED')">
+                👥 Compartida
+              </button>
+              <button
+                type="button"
+                class="type-btn type-daniel"
+                [class.type-btn--selected]="editFormType === 'SOLO_DANIEL'"
+                (click)="setEditFormType('SOLO_DANIEL')">
+                🧑 Daniel
+              </button>
+              <button
+                type="button"
+                class="type-btn type-mafe"
+                [class.type-btn--selected]="editFormType === 'SOLO_MAFE'"
+                (click)="setEditFormType('SOLO_MAFE')">
+                👩 Mafe
+              </button>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label class="form-label" for="editNotes">Notas</label>
+            <input
+              id="editNotes"
+              type="text"
+              class="form-input"
+              [(ngModel)]="editFormNotes"
+              placeholder="Notas u observaciones..."
+            />
+          </div>
+        </div>
+
+        <div class="edit-modal-footer">
+          <button
+            type="button"
+            class="btn-save-modal"
+            (click)="saveEditItem()"
+            [disabled]="isUpdating()">
+            @if (isUpdating()) {
+              <span class="spinner"></span> Guardando...
+            } @else {
+              ✓ Guardar Cambios
+            }
+          </button>
+          <button
+            type="button"
+            class="btn-cancel-modal"
+            (click)="closeEditModal()"
+            [disabled]="isUpdating()">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════
+       MODAL DE CONFIRMACIÓN DE ELIMINACIÓN (ESTILO MÉXICO)
+  ═══════════════════════════════════════════════════════ -->
+  @if (deletingItem()) {
+    <div class="delete-modal-backdrop" (click)="closeDeleteModal()">
+      <div class="delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Confirmar eliminación">
+        <div class="delete-modal-icon-badge">
+          🗑️
+        </div>
+
+        <h3 class="delete-modal-title">¿Eliminar actividad?</h3>
+        <p class="delete-modal-subtitle">
+          Vas a remover esta actividad del itinerario de México.
+        </p>
+
+        <div class="delete-item-preview">
+          <span class="delete-item-name">{{ deletingItem()!.placeName }}</span>
+          <span class="delete-item-address">{{ deletingItem()!.placeAddress }}</span>
+          <div class="delete-item-meta">
+            <span>⏰ {{ formatTime(deletingItem()!.dateTime) }}</span>
+            <span>· {{ getTypeLabel(deletingItem()!.type) }}</span>
+          </div>
+        </div>
+
+        <div class="delete-modal-actions">
+          <button
+            type="button"
+            class="btn-confirm-delete"
+            (click)="confirmDelete()"
+            [disabled]="isDeleting() === deletingItem()!.id">
+            @if (isDeleting() === deletingItem()!.id) {
+              <span class="spinner"></span> Eliminando...
+            } @else {
+              🗑️ Sí, eliminar
+            }
+          </button>
+          <button
+            type="button"
+            class="btn-cancel-delete"
+            (click)="closeDeleteModal()"
+            [disabled]="isDeleting() === deletingItem()!.id">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</section>
