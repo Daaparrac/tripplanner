@@ -550,8 +550,10 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (event) event.stopPropagation();
     this.editingItem.set(item);
 
-    const dateStr = item.dateTime ? item.dateTime.substring(0, 10) : '2025-10-23';
-    const timeStr = item.dateTime ? item.dateTime.substring(11, 16) : '12:00';
+    const dateStr = item.dateTime
+      ? new Date(item.dateTime).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+      : '2025-10-23';
+    const timeStr = item.dateTime ? this.extractTimeFromISO(item.dateTime) : '12:00';
 
     this.editFormDate = dateStr;
     this.editFormTime = timeStr || '12:00';
@@ -808,9 +810,18 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   formatTime(dateTime: string | null): string {
     if (!dateTime) return '--:--';
-    return new Date(dateTime).toLocaleTimeString('es-MX', {
+    return this.extractTimeFromISO(dateTime);
+  }
+
+  private extractTimeFromISO(dateTime: string): string {
+    if (!dateTime) return '12:00';
+    const d = new Date(dateTime);
+    if (isNaN(d.getTime())) return '12:00';
+    return d.toLocaleTimeString('es-MX', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Mexico_City',
     });
   }
 }
