@@ -1,0 +1,27 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+frontend/.angular/
+
+# Environment / secrets
+**/.env
+**/.env.*
+!**/.env.example
+backend/cloud-run-env.yaml
+
+# Logs
+**/*.log
+**/logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migration scripts (solo para uso local)
+backend/src/migrations/
