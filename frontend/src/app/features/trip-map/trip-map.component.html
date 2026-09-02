@@ -438,6 +438,11 @@
         <map-directions-renderer [directions]="directionsResult()!" [options]="rendererOptions">
         </map-directions-renderer>
       }
+
+      <!-- Capa de Tráfico en Tiempo Real -->
+      @if (showTraffic()) {
+        <map-traffic-layer [autoRefresh]="true"></map-traffic-layer>
+      }
     </google-map>
 
     <!-- ── Controles Flotantes Personalizados del Mapa (Glassmorphism OLED / Light) ── -->
@@ -490,6 +495,18 @@
         <span>{{ isLocating() ? '⌛' : '📍' }}</span>
       </button>
 
+      <!-- Toggle Capa de Tráfico en Vivo -->
+      <button
+        type="button"
+        class="map-ctrl-btn map-ctrl-btn--standalone"
+        [class.map-ctrl-btn--active]="showTraffic()"
+        (click)="toggleTraffic()"
+        [title]="showTraffic() ? 'Desactivar capa de tráfico' : 'Ver tráfico en tiempo real'"
+        aria-label="Alternar capa de tráfico"
+      >
+        <span>🚦</span>
+      </button>
+
       <!-- Toggle Satélite / Mapa Estilo -->
       <button
         type="button"
@@ -513,6 +530,19 @@
         <span>⛶</span>
       </button>
     </div>
+
+    <!-- Badge flotante de estado de tráfico -->
+    @if (showTraffic()) {
+      <div class="traffic-legend-badge" role="status" aria-live="polite">
+        <span class="traffic-pulse-dot"></span>
+        <span class="traffic-label">Tráfico en vivo</span>
+        <div class="traffic-scale">
+          <span class="traffic-bar traffic-bar--fast" title="Fluido"></span>
+          <span class="traffic-bar traffic-bar--medium" title="Moderado"></span>
+          <span class="traffic-bar traffic-bar--slow" title="Lento / Trancón"></span>
+        </div>
+      </div>
+    }
 
     @if (locationError()) {
       <div class="gps-error-toast" role="alert">

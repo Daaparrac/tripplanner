@@ -1037,6 +1037,69 @@
   }
 }
 
+.traffic-legend-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--app-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--app-border);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 30;
+  animation: fadeIn 0.2s ease;
+
+  @media (max-width: 768px) {
+    top: 14px;
+    left: 14px;
+    padding: 4px 10px;
+  }
+
+  .traffic-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: pulse 1.8s infinite;
+  }
+
+  .traffic-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--app-text-primary);
+    white-space: nowrap;
+  }
+
+  .traffic-scale {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 2px;
+  }
+
+  .traffic-bar {
+    width: 10px;
+    height: 4px;
+    border-radius: 2px;
+
+    &--fast {
+      background: #10b981; // Verde - Rápido
+    }
+    &--medium {
+      background: #f59e0b; // Naranja - Moderado
+    }
+    &--slow {
+      background: #ef4444; // Rojo - Lento
+    }
+  }
+}
+
 .gps-error-toast {
   position: absolute;
   top: 64px;

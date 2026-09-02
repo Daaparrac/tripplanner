@@ -20,6 +20,7 @@ import {
   MapMarker,
   MapDirectionsRenderer,
   MapDirectionsService,
+  MapTrafficLayer,
 } from '@angular/google-maps';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, takeUntil } from 'rxjs';
@@ -181,7 +182,15 @@ function createMarkerSvgIcon(type: ItemType): google.maps.Icon {
   selector: 'app-trip-map',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, GoogleMap, MapMarker, MapDirectionsRenderer, DecimalPipe, FormsModule],
+  imports: [
+    CommonModule,
+    GoogleMap,
+    MapMarker,
+    MapDirectionsRenderer,
+    MapTrafficLayer,
+    DecimalPipe,
+    FormsModule,
+  ],
   templateUrl: './trip-map.component.html',
   styleUrl: './trip-map.component.scss',
 })
@@ -306,6 +315,13 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Control custom: Alternar vista mapa / satélite */
   toggleMapType(): void {
     this.mapTypeId.update((curr) => (curr === 'roadmap' ? 'hybrid' : 'roadmap'));
+  }
+
+  /** Control custom: Alternar capa de tráfico en tiempo real */
+  readonly showTraffic = signal<boolean>(false);
+
+  toggleTraffic(): void {
+    this.showTraffic.update((active) => !active);
   }
 
   /** Control custom: Pantalla completa */

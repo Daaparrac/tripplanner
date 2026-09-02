@@ -247,6 +247,11 @@ El script:
 - Filtro de esquemas no-HTTP en `sw.js` (fix para error `chrome-extension://`).
 - Auto-check de actualizaciones en `main.ts`.
 
+### 9. 🚦 Capa de Tráfico en Tiempo Real
+- Botón flotante `🚦` en los controles del mapa para alternar la capa de tráfico en vivo (`google.maps.TrafficLayer`).
+- Badge con indicador de pulso verde y escala de colores (🟢 Fluido, 🟡 Moderado, 🔴 Lento/Trancón).
+- Actualización automática con `[autoRefresh]="true"`.
+
 ---
 
 ## 📄 Licencia
