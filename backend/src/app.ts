@@ -62,10 +62,14 @@ app.get('/health', (_req, res) => {
   });
 });
 
+import { authMiddleware } from './middlewares/auth.middleware';
+import { getCountries } from './controllers/itinerary.controller';
+
 // ── Rutas de la API ───────────────────────────────────────────────────────────
 
 app.use('/api/auth', authRoutes);
-app.use('/api/trips', itineraryRoutes);
+app.get('/api/countries', getCountries);
+app.use('/api/trips', authMiddleware, itineraryRoutes);
 
 // ── Handlers de Error (siempre al final) ─────────────────────────────────────
 

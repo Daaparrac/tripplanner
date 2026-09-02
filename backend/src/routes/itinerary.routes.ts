@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
   getTrips,
   createTrip,
@@ -7,7 +7,8 @@ import {
   updateItem,
   deleteItem,
   checkProximity,
-} from '../controllers/itinerary.controller';
+  updateTrip,
+} from "../controllers/itinerary.controller";
 
 const router = Router();
 
@@ -17,13 +18,19 @@ const router = Router();
  * GET /api/trips
  * Lista todos los viajes.
  */
-router.get('/', getTrips);
+router.get("/", getTrips);
 
 /**
  * POST /api/trips
  * Crea un nuevo viaje.
  */
-router.post('/', createTrip);
+router.post("/", createTrip);
+
+/**
+ * PATCH /api/trips/:tripId
+ * Actualiza la configuración de un viaje (ej. proximityThresholdKm).
+ */
+router.patch("/:tripId", updateTrip);
 
 // ── Itinerario ────────────────────────────────────────────────────────────────
 
@@ -31,9 +38,9 @@ router.post('/', createTrip);
  * GET /api/trips/:tripId/itinerary
  * Retorna items del itinerario. Acepta ?date=YYYY-MM-DD para filtrar por día.
  *
- * GET /api/trips/:tripId/itinerary?date=2025-10-23
+ * GET /api/trips/:tripId/itinerary?date=2026-10-23
  */
-router.get('/:tripId/itinerary', getItinerary);
+router.get("/:tripId/itinerary", getItinerary);
 
 /**
  * POST /api/trips/:tripId/itinerary
@@ -41,19 +48,19 @@ router.get('/:tripId/itinerary', getItinerary);
  *
  * Body: { placeId, placeName, placeAddress, lat, lng, dateTime, ownerId, type, durationMinutes?, notes? }
  */
-router.post('/:tripId/itinerary', addItem);
+router.post("/:tripId/itinerary", addItem);
 
 /**
  * PATCH /api/trips/:tripId/itinerary/:itemId
  * Actualiza parcialmente un item (dateTime, type, notes, etc.)
  */
-router.patch('/:tripId/itinerary/:itemId', updateItem);
+router.patch("/:tripId/itinerary/:itemId", updateItem);
 
 /**
  * DELETE /api/trips/:tripId/itinerary/:itemId
  * Elimina un item del itinerario.
  */
-router.delete('/:tripId/itinerary/:itemId', deleteItem);
+router.delete("/:tripId/itinerary/:itemId", deleteItem);
 
 /**
  * GET /api/trips/:tripId/itinerary/check-proximity?date=YYYY-MM-DD
@@ -64,6 +71,6 @@ router.delete('/:tripId/itinerary/:itemId', deleteItem);
  * ⚠️ Esta ruta DEBE declararse ANTES de /:tripId/itinerary/:itemId
  * para evitar que Express interprete 'check-proximity' como un itemId.
  */
-router.get('/:tripId/itinerary/check-proximity', checkProximity);
+router.get("/:tripId/itinerary/check-proximity", checkProximity);
 
 export default router;

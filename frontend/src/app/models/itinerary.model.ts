@@ -1,6 +1,6 @@
 // ── Tipos base ────────────────────────────────────────────────────────────────
 
-/** Destinos disponibles para el viaje México 2025 */
+/** Destinos disponibles para el viaje México 2026 */
 export type Destination = 'CDMX' | 'GUADALAJARA' | 'CANCUN';
 
 /**
@@ -14,14 +14,34 @@ export type ItemType = 'SHARED' | 'SOLO_DANIEL' | 'SOLO_MAFE';
 
 // ── Modelos de dominio ────────────────────────────────────────────────────────
 
+export interface Country {
+  code: string;
+  name: string;
+}
+
+export interface TripDestination {
+  id?: string;
+  tripId?: string;
+  name: string;        // Ej: "Ciudad de México"
+  shortCode: string;   // Ej: "CDMX"
+  startDate: string;   // YYYY-MM-DD
+  endDate: string;     // YYYY-MM-DD
+  color: string;       // HEX Ej: "#06B6D4"
+  emoji: string;       // Ej: "🏛️"
+}
+
 export interface Trip {
   id: string;
   name: string;
+  /** Código de país ISO 3166-1 alpha-2, ej: 'mx', 'co', 'jp', 'es' */
+  countryCode?: string;
+  country?: Country;
   /** Formato YYYY-MM-DD */
   startDate: string;
   /** Formato YYYY-MM-DD */
   endDate: string;
-  destinations: Destination[];
+  destinations: string[];
+  destinationsList?: TripDestination[];
   /**
    * Umbral de proximidad en km para alertas de actividades SOLO concurrentes.
    * Configurable por viaje.

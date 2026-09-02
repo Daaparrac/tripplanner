@@ -28,7 +28,14 @@ import { AuthService } from '../../core/services/auth.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { TripMapService } from '../../core/services/trip-map.service';
 import { ItineraryService } from '../../core/services/itinerary.service';
-import type { ItineraryItem, ItemType, OwnerId, CreateItineraryItemDto, UpdateItineraryItemDto } from '../../models/itinerary.model';
+import { AppStateService } from '../../core/services/app-state.service';
+import type {
+  ItineraryItem,
+  ItemType,
+  OwnerId,
+  CreateItineraryItemDto,
+  UpdateItineraryItemDto,
+} from '../../models/itinerary.model';
 
 // ── Tipos internos ────────────────────────────────────────────────────────────
 
@@ -49,31 +56,43 @@ interface MarkerConfig {
 // ── Constantes visuales (Paleta México: Rosa Mexicano, Verde Bandera, Magenta) ──
 
 const ITEM_TYPE_CONFIG: Record<ItemType, { color: string; label: string; emoji: string }> = {
-  SHARED:      { color: '#FF2D78', label: 'Compartida',   emoji: '👥' }, // Rosa Mexicano
-  SOLO_DANIEL: { color: '#10B981', label: 'Solo Daniel',  emoji: '🧑' }, // Verde México
-  SOLO_MAFE:   { color: '#EC4899', label: 'Solo Mafe',    emoji: '👩' }, // Magenta Bugambilia
+  SHARED: { color: '#FF2D78', label: 'Compartida', emoji: '👥' }, // Rosa Mexicano
+  SOLO_DANIEL: { color: '#10B981', label: 'Solo Daniel', emoji: '🧑' }, // Verde México
+  SOLO_MAFE: { color: '#EC4899', label: 'Solo Mafe', emoji: '👩' }, // Magenta Bugambilia
 };
 
 /** Estilos OLED Dark (#000000 puro para máximo ahorro de batería) */
 const OLED_BLACK_MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry',                 stylers: [{ color: '#000000' }] },
-  { elementType: 'labels.text.stroke',       stylers: [{ color: '#000000' }] },
-  { elementType: 'labels.text.fill',         stylers: [{ color: '#a1a1aa' }] },
+  { elementType: 'geometry', stylers: [{ color: '#000000' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#000000' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#a1a1aa' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#050a14' }] },
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3b82f6' }] },
-  { featureType: 'poi',   elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
-  { featureType: 'poi',   elementType: 'labels.text.fill', stylers: [{ color: '#71717a' }] },
+  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#71717a' }] },
   { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#08140e' }] },
-  { featureType: 'road',     elementType: 'geometry', stylers: [{ color: '#171717' }] },
-  { featureType: 'road',     elementType: 'geometry.stroke', stylers: [{ color: '#000000' }] },
-  { featureType: 'road',     elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#171717' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#000000' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#888888' }] },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
   { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#000000' }] },
   { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#93c5fd' }] },
-  { featureType: 'transit',      elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
-  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#71717a' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#f4f4f5' }] },
-  { featureType: 'administrative.neighborhood', elementType: 'labels.text.fill', stylers: [{ color: '#a1a1aa' }] },
+  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#0d0d0d' }] },
+  {
+    featureType: 'transit.station',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#71717a' }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#f4f4f5' }],
+  },
+  {
+    featureType: 'administrative.neighborhood',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#a1a1aa' }],
+  },
 ];
 
 /** Estilos claros modernos para Google Maps */
@@ -82,12 +101,20 @@ const LIGHT_MAP_STYLES: google.maps.MapTypeStyle[] = [
   { elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
-  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
+  {
+    featureType: 'administrative.land_parcel',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#bdbdbd' }],
+  },
   { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
   { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
   { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e8e8' }] },
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+  {
+    featureType: 'road.arterial',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#757575' }],
+  },
   { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
   { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
   { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
@@ -154,19 +181,11 @@ function createMarkerSvgIcon(type: ItemType): google.maps.Icon {
   selector: 'app-trip-map',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    GoogleMap,
-    MapMarker,
-    MapDirectionsRenderer,
-    DecimalPipe,
-    FormsModule,
-  ],
+  imports: [CommonModule, GoogleMap, MapMarker, MapDirectionsRenderer, DecimalPipe, FormsModule],
   templateUrl: './trip-map.component.html',
   styleUrl: './trip-map.component.scss',
 })
 export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
-
   // ── ViewChildren ──────────────────────────────────────────────────────────
 
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
@@ -175,14 +194,37 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Servicios ─────────────────────────────────────────────────────────────
 
-  readonly themeService             = inject(ThemeService);
-  readonly authService              = inject(AuthService);
-  private readonly tripMapService   = inject(TripMapService);
+  readonly themeService = inject(ThemeService);
+  readonly authService = inject(AuthService);
+  readonly appState = inject(AppStateService);
+  readonly tripMapService = inject(TripMapService);
   private readonly itineraryService = inject(ItineraryService);
   private readonly directionsService = inject(MapDirectionsService);
-  private readonly ngZone           = inject(NgZone);
-  private readonly cdr              = inject(ChangeDetectorRef);
-  private readonly destroy$         = new Subject<void>();
+  private readonly ngZone = inject(NgZone);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroy$ = new Subject<void>();
+
+  getFlagUrl(countryCode?: string, size: 'w40' | 'w80' = 'w40'): string {
+    const code = (countryCode || 'mx').toLowerCase();
+    return `https://flagcdn.com/${size}/${code}.png`;
+  }
+
+  formatTripDates(start?: string, end?: string): string {
+    if (!start || !end) return '';
+    try {
+      const s = new Date(`${start}T12:00:00`);
+      const e = new Date(`${end}T12:00:00`);
+      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const sMonth = months[s.getMonth()];
+      const eMonth = months[e.getMonth()];
+      if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+        return `${sMonth} ${s.getDate()} – ${e.getDate()}, ${s.getFullYear()}`;
+      }
+      return `${sMonth} ${s.getDate()} – ${eMonth} ${e.getDate()}, ${e.getFullYear()}`;
+    } catch {
+      return `${start} – ${end}`;
+    }
+  }
 
   // ── Ubicación en Vivo del Usuario (GPS) ───────────────────────────────────
 
@@ -199,22 +241,25 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Configuración del Mapa ────────────────────────────────────────────────
 
   readonly center = signal<google.maps.LatLngLiteral>(CDMX_CENTER);
-  readonly zoom   = signal<number>(12);
+  readonly zoom = signal<number>(12);
+  readonly mapTypeId = signal<'roadmap' | 'hybrid'>('roadmap');
 
-  readonly minDate = '2025-10-23';
-  readonly maxDate = '2025-11-11';
+  readonly minDate = '2026-10-23';
+  readonly maxDate = '2026-11-11';
+
+  readonly currentTheme = computed(() => this.themeService.currentTheme());
 
   readonly mapOptions = computed<google.maps.MapOptions>(() => {
-    const isDark = this.themeService.currentTheme() === 'dark';
+    const isDark = this.currentTheme() === 'dark';
+    const isHybrid = this.mapTypeId() === 'hybrid';
     return {
-      center: this.center(),
-      zoom: this.zoom(),
-      disableDefaultUI: false,
-      zoomControl: true,
+      mapTypeId: this.mapTypeId(),
+      disableDefaultUI: true,
+      zoomControl: false,
       mapTypeControl: false,
       streetViewControl: false,
-      fullscreenControl: true,
-      styles: isDark ? OLED_BLACK_MAP_STYLES : LIGHT_MAP_STYLES,
+      fullscreenControl: false,
+      styles: isHybrid ? [] : isDark ? OLED_BLACK_MAP_STYLES : LIGHT_MAP_STYLES,
       gestureHandling: 'greedy',
     };
   });
@@ -227,6 +272,104 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
       strokeOpacity: 0.85,
     },
   };
+
+  /** Control custom: Acercar zoom */
+  zoomIn(event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const map = this.googleMapRef?.googleMap;
+    if (map) {
+      const current = map.getZoom() ?? this.zoom();
+      const next = Math.min(current + 1, 21);
+      map.setZoom(next);
+      this.zoom.set(next);
+    } else {
+      this.zoom.update((z) => Math.min(z + 1, 21));
+    }
+  }
+
+  /** Control custom: Alejar zoom */
+  zoomOut(event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const map = this.googleMapRef?.googleMap;
+    if (map) {
+      const current = map.getZoom() ?? this.zoom();
+      const next = Math.max(current - 1, 2);
+      map.setZoom(next);
+      this.zoom.set(next);
+    } else {
+      this.zoom.update((z) => Math.max(z - 1, 2));
+    }
+  }
+
+  /** Control custom: Alternar vista mapa / satélite */
+  toggleMapType(): void {
+    this.mapTypeId.update((curr) => (curr === 'roadmap' ? 'hybrid' : 'roadmap'));
+  }
+
+  /** Control custom: Pantalla completa */
+  toggleFullscreen(): void {
+    const el = document.querySelector('.map-wrapper');
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen?.().catch((err) => console.warn('Fullscreen failed:', err));
+    } else {
+      document.exitFullscreen?.().catch((err) => console.warn('Exit fullscreen failed:', err));
+    }
+  }
+
+  /** Control custom: Centrar en las actividades del viaje o en el país/ciudad */
+  fitMapToTrip(): void {
+    const currentItems = this.items();
+    if (currentItems && currentItems.length > 0 && typeof google !== 'undefined' && google.maps) {
+      const bounds = new google.maps.LatLngBounds();
+      currentItems.forEach((item) => {
+        bounds.extend({ lat: Number(item.lat), lng: Number(item.lng) });
+      });
+      if (this.googleMapRef?.googleMap) {
+        this.googleMapRef.googleMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+      }
+    } else {
+      const trip = this.appState.activeTrip();
+      if (trip) {
+        this.centerTripLocation(trip);
+      }
+    }
+  }
+
+  /** Centra el mapa geocodificando la ciudad o país del viaje activo */
+  centerTripLocation(trip: any): void {
+    const currentItems = this.items();
+    if (currentItems && currentItems.length > 0 && typeof google !== 'undefined' && google.maps) {
+      const bounds = new google.maps.LatLngBounds();
+      currentItems.forEach((item) => bounds.extend({ lat: Number(item.lat), lng: Number(item.lng) }));
+      this.googleMapRef?.googleMap?.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+      return;
+    }
+
+    const query =
+      trip.destinations && trip.destinations.length > 0
+        ? `${trip.destinations[0]}, ${trip.country?.name || trip.countryCode}`
+        : trip.country?.name || trip.name || trip.countryCode || 'Mexico';
+
+    if (typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: query }, (results, status) => {
+        if (status === 'OK' && results && results[0]?.geometry?.location) {
+          const loc = results[0].geometry.location;
+          const coords = { lat: loc.lat(), lng: loc.lng() };
+          this.center.set(coords);
+          this.zoom.set(11);
+          if (this.googleMapRef?.googleMap) {
+            this.googleMapRef.googleMap.panTo(coords);
+            this.googleMapRef.googleMap.setZoom(11);
+          }
+          this.cdr.markForCheck();
+        }
+      });
+    }
+  }
 
   /** Obtiene la ubicación GPS en vivo del dispositivo */
   locateUser(centerMap = true): void {
@@ -260,7 +403,9 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
         console.warn('[TripMapComponent] Geolocation error:', err);
         this.isLocating.set(false);
         if (centerMap) {
-          this.locationError.set('GPS no disponible (en celulares requiere HTTPS o activar permiso).');
+          this.locationError.set(
+            'GPS no disponible (en celulares requiere HTTPS o activar permiso).',
+          );
           this.center.set(CDMX_CENTER);
         }
         this.cdr.markForCheck();
@@ -269,7 +414,7 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
         enableHighAccuracy: false,
         timeout: 4000,
         maximumAge: 60000,
-      }
+      },
     );
   }
 
@@ -336,16 +481,37 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
         animation: google.maps.Animation.DROP,
         zIndex: item.type === 'SHARED' ? 10 : 5,
       },
-    }))
+    })),
   );
 
-  readonly typeEntries = Object.entries(ITEM_TYPE_CONFIG) as [ItemType, { color: string; label: string; emoji: string }][];
+  readonly typeEntries = Object.entries(ITEM_TYPE_CONFIG) as [
+    ItemType,
+    { color: string; label: string; emoji: string },
+  ][];
 
   // ── Autocomplete ──────────────────────────────────────────────────────────
 
   private autocomplete: google.maps.places.Autocomplete | null = null;
 
+  private lastHandledTripId: string | null = null;
+
   constructor() {
+    effect(() => {
+      const trip = this.appState.activeTrip();
+      if (trip && trip.id !== this.lastHandledTripId) {
+        this.lastHandledTripId = trip.id;
+        if (trip.startDate) {
+          this.tripMapService.selectDate(trip.startDate);
+          this.selectedDate.set(trip.startDate);
+          this.formDate = trip.startDate;
+        }
+        this.centerTripLocation(trip);
+        if (this.autocomplete && trip.countryCode) {
+          this.autocomplete.setComponentRestrictions({ country: trip.countryCode.toLowerCase() });
+        }
+      }
+    });
+
     effect(() => {
       const _ = this.items();
       this.directionsResult.set(null);
@@ -384,11 +550,12 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private initPlacesAutocomplete(): void {
     const inputEl = this.searchInputRef.nativeElement;
+    const countryCode = this.appState.activeTrip()?.countryCode?.toLowerCase() || 'mx';
 
     this.autocomplete = new google.maps.places.Autocomplete(inputEl, {
       fields: ['place_id', 'name', 'geometry', 'formatted_address'],
       types: ['establishment', 'geocode'],
-      componentRestrictions: { country: 'MX' },
+      componentRestrictions: { country: countryCode },
     });
 
     this.autocomplete.addListener('place_changed', () => {
@@ -436,6 +603,14 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.formDate = date;
     this.directionsResult.set(null);
     this.activeItem.set(null);
+    // Center map on destination if date falls within a TripDestination range
+    const trip = this.appState.activeTrip();
+    if (trip && trip.destinationsList && trip.destinationsList.length) {
+      const matchingDest = trip.destinationsList.find(d => date >= d.startDate && date <= d.endDate);
+      if (matchingDest) {
+        this.centerOnDestination(matchingDest.name);
+      }
+    }
   }
 
   setFormType(type: ItemType): void {
@@ -454,6 +629,28 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /** Center map on a destination name using geocoding */
+  private centerOnDestination(destName: string): void {
+    const trip = this.appState.activeTrip();
+    const query = `${destName}, ${trip?.country?.name || trip?.countryCode || 'Mexico'}`;
+    if (typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: query }, (results, status) => {
+        if (status === 'OK' && results && results[0]?.geometry?.location) {
+          const loc = results[0].geometry.location;
+          const coords = { lat: loc.lat(), lng: loc.lng() };
+          this.center.set(coords);
+          this.zoom.set(11);
+          if (this.googleMapRef?.googleMap) {
+            this.googleMapRef.googleMap.panTo(coords);
+            this.googleMapRef.googleMap.setZoom(11);
+          }
+          this.cdr.markForCheck();
+        }
+      });
+    }
+  }
+
   /**
    * Guarda el lugar:
    * - Si mode === 'SCHEDULED': crea el item con fecha/hora y lo persiste en backend.
@@ -465,9 +662,13 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.isSaving.set(true);
     const tripId = this.tripMapService.selectedTripId();
+    if (!tripId) {
+      this.isSaving.set(false);
+      return;
+    }
     const isScheduled = this.formMode === 'SCHEDULED';
 
-    const targetDate = isScheduled && this.formDate ? this.formDate : '2025-10-23';
+    const targetDate = isScheduled && this.formDate ? this.formDate : '2026-10-23';
     const timeStr = isScheduled && this.formHasTime && this.formTime ? this.formTime : '12:00';
     const dateTime = `${targetDate}T${timeStr}:00-06:00`;
 
@@ -478,7 +679,12 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
       lat: place.lat,
       lng: place.lng,
       dateTime,
-      ownerId: this.formType === 'SOLO_DANIEL' ? 'DANIEL' : this.formType === 'SOLO_MAFE' ? 'MAFE' : 'SHARED',
+      ownerId:
+        this.formType === 'SOLO_DANIEL'
+          ? 'DANIEL'
+          : this.formType === 'SOLO_MAFE'
+            ? 'MAFE'
+            : 'SHARED',
       type: this.formType,
       durationMinutes: this.formDuration || 60,
       notes: this.formNotes.trim() || null,
@@ -515,9 +721,14 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
         placeAddress: place.placeAddress,
         lat: place.lat,
         lng: place.lng,
-        dateTime: '2025-10-23T12:00:00-06:00',
+        dateTime: '2026-10-23T12:00:00-06:00',
         durationMinutes: this.formDuration || 60,
-        ownerId: this.formType === 'SOLO_DANIEL' ? 'DANIEL' : this.formType === 'SOLO_MAFE' ? 'MAFE' : 'SHARED',
+        ownerId:
+          this.formType === 'SOLO_DANIEL'
+            ? 'DANIEL'
+            : this.formType === 'SOLO_MAFE'
+              ? 'MAFE'
+              : 'SHARED',
         type: this.formType,
         notes: this.formNotes.trim() || null,
         createdAt: new Date().toISOString(),
@@ -552,7 +763,7 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const dateStr = item.dateTime
       ? new Date(item.dateTime).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
-      : '2025-10-23';
+      : '2026-10-23';
     const timeStr = item.dateTime ? this.extractTimeFromISO(item.dateTime) : '12:00';
 
     this.editFormDate = dateStr;
@@ -578,9 +789,18 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.isUpdating.set(true);
     const tripId = this.tripMapService.selectedTripId();
+    if (!tripId) {
+      this.isUpdating.set(false);
+      return;
+    }
     const dateTime = `${this.editFormDate}T${this.editFormTime || '12:00'}:00-06:00`;
 
-    const ownerId: OwnerId = this.editFormType === 'SOLO_DANIEL' ? 'DANIEL' : this.editFormType === 'SOLO_MAFE' ? 'MAFE' : 'SHARED';
+    const ownerId: OwnerId =
+      this.editFormType === 'SOLO_DANIEL'
+        ? 'DANIEL'
+        : this.editFormType === 'SOLO_MAFE'
+          ? 'MAFE'
+          : 'SHARED';
     const dto: UpdateItineraryItemDto = {
       dateTime,
       durationMinutes: this.editFormDuration || 60,
@@ -605,7 +825,12 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
           item.dateTime = dateTime;
           item.durationMinutes = this.editFormDuration || 60;
           item.type = this.editFormType;
-          item.ownerId = this.editFormType === 'SOLO_DANIEL' ? 'DANIEL' : this.editFormType === 'SOLO_MAFE' ? 'MAFE' : 'SHARED';
+          item.ownerId =
+            this.editFormType === 'SOLO_DANIEL'
+              ? 'DANIEL'
+              : this.editFormType === 'SOLO_MAFE'
+                ? 'MAFE'
+                : 'SHARED';
           item.notes = this.editFormNotes.trim() || null;
           this.isUpdating.set(false);
           this.editingItem.set(null);
@@ -635,6 +860,10 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.isDeleting.set(item.id);
     const tripId = this.tripMapService.selectedTripId();
+    if (!tripId) {
+      this.isDeleting.set(null);
+      return;
+    }
 
     this.itineraryService
       .deleteItem$(tripId, item.id)
@@ -691,12 +920,10 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
       lng: Number(sortedItems[sortedItems.length - 1].lng),
     };
 
-    const waypoints: google.maps.DirectionsWaypoint[] = sortedItems
-      .slice(1, -1)
-      .map((item) => ({
-        location: { lat: Number(item.lat), lng: Number(item.lng) },
-        stopover: true,
-      }));
+    const waypoints: google.maps.DirectionsWaypoint[] = sortedItems.slice(1, -1).map((item) => ({
+      location: { lat: Number(item.lat), lng: Number(item.lng) },
+      stopover: true,
+    }));
 
     const request: google.maps.DirectionsRequest = {
       origin,
@@ -735,7 +962,8 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   checkProximity(): void {
     const tripId = this.tripMapService.selectedTripId();
-    const date   = this.selectedDate();
+    if (!tripId) return;
+    const date = this.selectedDate();
     const dayItems = this.items();
 
     this.proximityStatus.set({
@@ -764,7 +992,8 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
             if (dayItems.length >= 2) {
               summary = `${dayItems.length} actividades programadas para este día sin conflictos de separación.`;
             } else {
-              summary = 'No hay actividades simultáneas individuales de Daniel y Mafe a más de 5 km.';
+              summary =
+                'No hay actividades simultáneas individuales de Daniel y Mafe a más de 5 km.';
             }
 
             this.proximityStatus.set({
@@ -782,7 +1011,8 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.proximityStatus.set({
             checked: true,
             isChecking: false,
-            message: '✅ Verificación realizada: Actividades analizadas correctamente sin alertas de separación crítica.',
+            message:
+              '✅ Verificación realizada: Actividades analizadas correctamente sin alertas de separación crítica.',
             type: 'success',
           });
           this.cdr.markForCheck();
@@ -825,4 +1055,3 @@ export class TripMapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 }
-

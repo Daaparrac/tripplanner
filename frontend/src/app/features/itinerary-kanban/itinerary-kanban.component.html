@@ -1,15 +1,22 @@
 <div class="kanban-page">
-
   <!-- ═══════════════════════════════════════════════════════
        HEADER DEL TABLERO
   ═══════════════════════════════════════════════════════ -->
   <header class="board-header">
     <div class="board-title-group">
       <h1 class="board-title">
-        <span class="board-flag">🇲🇽</span>
-        Itinerario México 2025
+        <div class="board-flag-wrap">
+          <img
+            [src]="getFlagUrl(appState.activeTrip()?.countryCode, 'w80')"
+            [alt]="appState.activeTrip()?.countryCode || 'Trip'"
+            class="board-flag-img"
+          />
+        </div>
+        <span>{{ appState.activeTrip()?.name || 'Itinerario de Viaje' }}</span>
       </h1>
-      <p class="board-subtitle">Oct 23 – Nov 11 · Daniel &amp; Mafe</p>
+      <p class="board-subtitle">
+        {{ formatTripDates(appState.activeTrip()?.startDate, appState.activeTrip()?.endDate) }} · Daniel &amp; Mafe
+      </p>
     </div>
 
     <div class="board-stats">
@@ -21,13 +28,16 @@
         <span class="stat-value">{{ totalSaved }}</span>
         <span class="stat-label">Por asignar</span>
       </div>
-      <div class="stat-chip stat-chip--destinations">
-        <span>🏙️ CDMX</span>
-        <span class="chip-divider">·</span>
-        <span>🌮 GDL</span>
-        <span class="chip-divider">·</span>
-        <span>🏖️ CUN</span>
-      </div>
+      @if (appState.activeTrip()?.destinations && appState.activeTrip()!.destinations!.length > 0) {
+        <div class="stat-chip stat-chip--destinations">
+          @for (dest of appState.activeTrip()!.destinations; track dest; let last = $last) {
+            <span>📍 {{ dest }}</span>
+            @if (!last) {
+              <span class="chip-divider">·</span>
+            }
+          }
+        </div>
+      }
     </div>
 
     <!-- Indicador de sync -->
@@ -58,7 +68,8 @@
         class="day-pill"
         [class.day-pill--active]="activeColumnId() === column.id"
         [class.day-pill--saved]="column.isUnscheduled"
-        (click)="scrollToColumn(column.id)">
+        (click)="scrollToColumn(column.id)"
+      >
         @if (column.isUnscheduled) {
           📌 Guardados ({{ column.items.length }})
         } @else {
@@ -70,9 +81,9 @@
 
   <!-- Leyenda de tipos (Paleta México) -->
   <div class="type-legend" role="legend" aria-label="Leyenda de tipos de actividad">
-    <div class="legend-item" style="--c: #FF2D78">👥 Compartida</div>
-    <div class="legend-item" style="--c: #10B981">🧑 Solo Daniel</div>
-    <div class="legend-item" style="--c: #EC4899">👩 Solo Mafe</div>
+    <div class="legend-item" style="--c: #ff2d78">👥 Compartida</div>
+    <div class="legend-item" style="--c: #10b981">🧑 Solo Daniel</div>
+    <div class="legend-item" style="--c: #ec4899">👩 Solo Mafe</div>
     <div class="legend-hint">Arrastra las tarjetas entre columnas para programar actividades</div>
   </div>
 
@@ -82,9 +93,7 @@
   ═══════════════════════════════════════════════════════ -->
   <div class="kanban-scroll-container" cdkDropListGroup>
     <div class="kanban-board" role="main" aria-label="Tablero de itinerario">
-
       @for (column of columns; track trackByColumnId($index, column)) {
-
         <!-- ── Columna ─────────────────────────────────────────────────── -->
         <article
           [id]="'kanban-col-' + column.id"
@@ -92,14 +101,16 @@
           [class.kanban-column--unscheduled]="column.isUnscheduled"
           [class.kanban-column--weekend]="column.isWeekend && !column.isUnscheduled"
           [class.kanban-column--drop-active]="isDragging()"
-          [attr.aria-label]="column.isUnscheduled ? 'Columna de lugares guardados' : 'Columna del día ' + column.date">
-
+          [attr.aria-label]="
+            column.isUnscheduled ? 'Columna de lugares guardados' : 'Columna del día ' + column.date
+          "
+        >
           <!-- Acento de destino en la parte superior de la columna -->
-          @if (column.destination && !column.isUnscheduled) {
+          @if (column.destinationMeta && !column.isUnscheduled) {
             <div
               class="column-destination-accent"
-              [class]="'accent--' + (column.destination | lowercase)">
-            </div>
+              [style.background]="'linear-gradient(90deg, ' + column.destinationMeta.color + ', transparent)'"
+            ></div>
           }
 
           <!-- Cabecera de columna -->
@@ -121,13 +132,16 @@
                   <span class="column-month">{{ column.label.split('\n')[1] }}</span>
                 </div>
 
-                @if (column.destination) {
+                @if (column.destinationMeta) {
                   <span
                     class="destination-badge"
-                    [class]="'destination--' + (column.destination | lowercase)"
-                    [title]="getDestinationMeta(column.destination).label">
-                    {{ getDestinationMeta(column.destination).flag }}
-                    {{ column.destination }}
+                    [style.background]="column.destinationMeta.color + '25'"
+                    [style.color]="column.destinationMeta.color"
+                    [style.border-color]="column.destinationMeta.color + '60'"
+                    [title]="column.destinationMeta.label"
+                  >
+                    <span>{{ column.destinationMeta.emoji }}</span>
+                    <span>{{ column.destinationMeta.shortCode }}</span>
                   </span>
                 }
               </div>
@@ -137,7 +151,8 @@
             <span
               class="column-count"
               [class.column-count--empty]="column.items.length === 0"
-              aria-label="{{ column.items.length }} actividades">
+              aria-label="{{ column.items.length }} actividades"
+            >
               {{ column.items.length }}
             </span>
           </header>
@@ -152,26 +167,32 @@
             [class.column-drop-list--dragging]="isDragging()"
             [attr.aria-dropeffect]="isDragging() ? 'move' : 'none'"
             role="list"
-            [attr.aria-label]="'Lista de actividades para ' + (column.isUnscheduled ? 'lugares sin fecha' : column.date)">
-
+            [attr.aria-label]="
+              'Lista de actividades para ' +
+              (column.isUnscheduled ? 'lugares sin fecha' : column.date)
+            "
+          >
             <!-- ── Tarjetas de Actividad ────────────────────────────────── -->
-            @for (item of column.items; track trackByItemId($index, item); let isFirst = $first, isLast = $last) {
-
+            @for (
+              item of column.items;
+              track trackByItemId($index, item);
+              let isFirst = $first, isLast = $last
+            ) {
               <div
                 cdkDrag
                 [cdkDragData]="item"
                 class="activity-card"
                 [ngClass]="[
                   'activity-card--' + item.type.toLowerCase(),
-                  draggingItemId() === item.id ? 'activity-card--is-dragging' : ''
+                  draggingItemId() === item.id ? 'activity-card--is-dragging' : '',
                 ]"
                 [style.--type-color]="getItemColor(item.type)"
                 (cdkDragStarted)="onDragStarted(item)"
                 (cdkDragEnded)="onDragEnded()"
                 role="listitem"
                 [attr.aria-label]="item.placeName + ' — ' + getTypeLabel(item.type)"
-                tabindex="0">
-
+                tabindex="0"
+              >
                 <!-- Indicador de tipo (barra lateral izquierda) -->
                 <div class="card-type-bar" [style.background]="getItemColor(item.type)"></div>
 
@@ -180,14 +201,21 @@
                   cdkDragHandle
                   class="drag-handle"
                   aria-label="Arrastra para mover"
-                  title="Arrastrar">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-                    <circle cx="4" cy="3" r="1.2"/>
-                    <circle cx="10" cy="3" r="1.2"/>
-                    <circle cx="4" cy="7" r="1.2"/>
-                    <circle cx="10" cy="7" r="1.2"/>
-                    <circle cx="4" cy="11" r="1.2"/>
-                    <circle cx="10" cy="11" r="1.2"/>
+                  title="Arrastrar"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 14 14"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <circle cx="4" cy="3" r="1.2" />
+                    <circle cx="10" cy="3" r="1.2" />
+                    <circle cx="4" cy="7" r="1.2" />
+                    <circle cx="10" cy="7" r="1.2" />
+                    <circle cx="4" cy="11" r="1.2" />
+                    <circle cx="10" cy="11" r="1.2" />
                   </svg>
                 </div>
 
@@ -206,7 +234,8 @@
                         class="btn-card-action btn-move"
                         (click)="openMoveModal(item, $event)"
                         title="Mover a otro día"
-                        aria-label="Mover a otro día">
+                        aria-label="Mover a otro día"
+                      >
                         📅
                       </button>
                       <button
@@ -214,7 +243,8 @@
                         class="btn-card-action btn-edit"
                         (click)="openEditModal(item, $event)"
                         title="Editar"
-                        aria-label="Editar">
+                        aria-label="Editar"
+                      >
                         ✏️
                       </button>
                       <button
@@ -223,7 +253,8 @@
                         (click)="openDeleteModal(item, $event)"
                         [disabled]="isDeleting() === item.id"
                         title="Eliminar"
-                        aria-label="Eliminar">
+                        aria-label="Eliminar"
+                      >
                         @if (isDeleting() === item.id) {
                           <span class="mini-spinner"></span>
                         } @else {
@@ -239,7 +270,8 @@
                     <span
                       class="card-type-badge"
                       [style.background]="getItemColor(item.type) + '1a'"
-                      [style.color]="getItemColor(item.type)">
+                      [style.color]="getItemColor(item.type)"
+                    >
                       {{ getTypeLabel(item.type) }}
                     </span>
                     @if (!column.isUnscheduled) {
@@ -254,11 +286,9 @@
 
                 <!-- Placeholder personalizado (mostrado en el origen mientras se arrastra) -->
                 <div *cdkDragPlaceholder class="card-placeholder" aria-hidden="true"></div>
-
-              </div><!-- /cdkDrag -->
-
+              </div>
+              <!-- /cdkDrag -->
             } @empty {
-
               <!-- Estado vacío de la columna -->
               <div class="column-empty" aria-label="Columna vacía">
                 @if (column.isUnscheduled) {
@@ -269,26 +299,34 @@
                   <p>Arrastra actividades aquí</p>
                 }
               </div>
-
             }
-          </div><!-- /cdkDropList -->
-
-        </article><!-- /kanban-column -->
-
-      }<!-- /@for columns -->
-
-    </div><!-- /kanban-board -->
-  </div><!-- /kanban-scroll-container -->
+          </div>
+          <!-- /cdkDropList -->
+        </article>
+        <!-- /kanban-column -->
+      }
+      <!-- /@for columns -->
+    </div>
+    <!-- /kanban-board -->
+  </div>
+  <!-- /kanban-scroll-container -->
 
   <!-- ═══════════════════════════════════════════════════════
        MODAL DE EDICIÓN DE ACTIVIDAD (KANBAN)
   ═══════════════════════════════════════════════════════ -->
   @if (editingItem()) {
     <div class="edit-modal-backdrop" (click)="closeEditModal()">
-      <div class="edit-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Editar actividad">
+      <div
+        class="edit-modal"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-label="Editar actividad"
+      >
         <div class="edit-modal-header">
           <h3 class="edit-modal-title">✏️ Editar Actividad</h3>
-          <button class="btn-close-modal" (click)="closeEditModal()" aria-label="Cerrar modal">×</button>
+          <button class="btn-close-modal" (click)="closeEditModal()" aria-label="Cerrar modal">
+            ×
+          </button>
         </div>
 
         <div class="edit-modal-body">
@@ -340,21 +378,24 @@
                 type="button"
                 class="type-btn type-shared"
                 [class.type-btn--selected]="editFormType === 'SHARED'"
-                (click)="setEditFormType('SHARED')">
+                (click)="setEditFormType('SHARED')"
+              >
                 👥 Compartida
               </button>
               <button
                 type="button"
                 class="type-btn type-daniel"
                 [class.type-btn--selected]="editFormType === 'SOLO_DANIEL'"
-                (click)="setEditFormType('SOLO_DANIEL')">
+                (click)="setEditFormType('SOLO_DANIEL')"
+              >
                 🧑 Daniel
               </button>
               <button
                 type="button"
                 class="type-btn type-mafe"
                 [class.type-btn--selected]="editFormType === 'SOLO_MAFE'"
-                (click)="setEditFormType('SOLO_MAFE')">
+                (click)="setEditFormType('SOLO_MAFE')"
+              >
                 👩 Mafe
               </button>
             </div>
@@ -377,7 +418,8 @@
             type="button"
             class="btn-save-modal"
             (click)="saveEditItem()"
-            [disabled]="isUpdating()">
+            [disabled]="isUpdating()"
+          >
             @if (isUpdating()) {
               <span class="spinner"></span> Guardando...
             } @else {
@@ -388,7 +430,8 @@
             type="button"
             class="btn-cancel-modal"
             (click)="closeEditModal()"
-            [disabled]="isUpdating()">
+            [disabled]="isUpdating()"
+          >
             Cancelar
           </button>
         </div>
@@ -401,15 +444,16 @@
   ═══════════════════════════════════════════════════════ -->
   @if (deletingItem()) {
     <div class="delete-modal-backdrop" (click)="closeDeleteModal()">
-      <div class="delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Confirmar eliminación">
-        <div class="delete-modal-icon-badge">
-          🗑️
-        </div>
+      <div
+        class="delete-modal"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-label="Confirmar eliminación"
+      >
+        <div class="delete-modal-icon-badge">🗑️</div>
 
         <h3 class="delete-modal-title">¿Eliminar actividad?</h3>
-        <p class="delete-modal-subtitle">
-          Vas a remover esta actividad del tablero de viaje.
-        </p>
+        <p class="delete-modal-subtitle">Vas a remover esta actividad del tablero de viaje.</p>
 
         <div class="delete-item-preview">
           <span class="delete-item-name">{{ deletingItem()!.placeName }}</span>
@@ -425,7 +469,8 @@
             type="button"
             class="btn-confirm-delete"
             (click)="confirmDelete()"
-            [disabled]="isDeleting() === deletingItem()!.id">
+            [disabled]="isDeleting() === deletingItem()!.id"
+          >
             @if (isDeleting() === deletingItem()!.id) {
               <span class="spinner"></span> Eliminando...
             } @else {
@@ -436,7 +481,8 @@
             type="button"
             class="btn-cancel-delete"
             (click)="closeDeleteModal()"
-            [disabled]="isDeleting() === deletingItem()!.id">
+            [disabled]="isDeleting() === deletingItem()!.id"
+          >
             Cancelar
           </button>
         </div>
@@ -453,8 +499,8 @@
         class="move-modal-dialog"
         (click)="$event.stopPropagation()"
         role="dialog"
-        aria-label="Mover actividad a otro día">
-
+        aria-label="Mover actividad a otro día"
+      >
         <header class="move-modal-header">
           <div class="move-header-info">
             <span class="move-header-emoji">📅</span>
@@ -463,7 +509,14 @@
               <p class="move-place-name">{{ movingItem()!.placeName }}</p>
             </div>
           </div>
-          <button type="button" class="btn-close-move" (click)="closeMoveModal()" aria-label="Cerrar modal">×</button>
+          <button
+            type="button"
+            class="btn-close-move"
+            (click)="closeMoveModal()"
+            aria-label="Cerrar modal"
+          >
+            ×
+          </button>
         </header>
 
         <div class="move-modal-body">
@@ -475,8 +528,8 @@
                 type="button"
                 class="btn-move-target-day"
                 [class.btn-move-target-day--current]="isItemInColumn(column, movingItem())"
-                (click)="moveToColumn(column)">
-
+                (click)="moveToColumn(column)"
+              >
                 <div class="target-day-left">
                   @if (column.isUnscheduled) {
                     <span class="target-day-icon">📌</span>
@@ -487,7 +540,8 @@
                   } @else {
                     <span
                       class="target-day-dest-tag"
-                      [class]="'tag--' + (column.destination | lowercase)">
+                      [class]="'tag--' + (column.destination | lowercase)"
+                    >
                       {{ column.destination }}
                     </span>
                     <div class="target-day-text">
@@ -509,9 +563,8 @@
             }
           </div>
         </div>
-
       </div>
     </div>
   }
-
-</div><!-- /kanban-page -->
+</div>
+<!-- /kanban-page -->

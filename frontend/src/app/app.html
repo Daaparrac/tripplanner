@@ -4,9 +4,19 @@
   ═══════════════════════════════════════════════════════ -->
   <header class="app-nav" aria-label="Cabecera de la aplicación">
     <div class="app-brand">
-      <span class="brand-flag" aria-hidden="true">🇲🇽</span>
+      <div class="brand-flag-wrap">
+        <img
+          [src]="
+            'https://flagcdn.com/w40/' +
+            (appState.activeTrip()?.countryCode || 'mx').toLowerCase() +
+            '.png'
+          "
+          [alt]="appState.activeTrip()?.countryCode || 'Trip'"
+          class="brand-flag-img"
+        />
+      </div>
       <div class="brand-text">
-        <span class="brand-title">México 2025</span>
+        <span class="brand-title">{{ appState.activeTrip()?.name || 'Trip Planner' }}</span>
         <span class="brand-badge">Dani ❤️ Mafe 🫰</span>
       </div>
     </div>
@@ -32,54 +42,33 @@
           <span class="nav-icon" aria-hidden="true">📋</span>
           <span class="nav-label">Itinerario Kanban</span>
         </a>
+        <a
+          routerLink="/settings"
+          routerLinkActive="nav-link--active"
+          class="nav-link"
+          aria-label="Ir a Configuración"
+        >
+          <span class="nav-icon" aria-hidden="true">⚙️</span>
+          <span class="nav-label">Configuración</span>
+        </a>
       </nav>
-
-      <!-- Selector de Tema (OLED Black / Claro / Automático) -->
-      <div class="theme-selector" role="group" aria-label="Selector de tema">
-        <button
-          type="button"
-          class="btn-theme-pill"
-          [class.btn-theme-pill--active]="themeMode === 'dark'"
-          (click)="setTheme('dark')"
-          title="Modo Oscuro OLED (Negro absoluto #000000 para ahorrar batería)"
-          aria-label="Activar modo oscuro OLED"
-        >
-          🌙 <span class="theme-pill-label">OLED</span>
-        </button>
-        <button
-          type="button"
-          class="btn-theme-pill"
-          [class.btn-theme-pill--active]="themeMode === 'light'"
-          (click)="setTheme('light')"
-          title="Modo Claro"
-          aria-label="Activar modo claro"
-        >
-          ☀️ <span class="theme-pill-label">Claro</span>
-        </button>
-        <button
-          type="button"
-          class="btn-theme-pill"
-          [class.btn-theme-pill--active]="themeMode === 'auto'"
-          (click)="setTheme('auto')"
-          title="Automático según el sistema"
-          aria-label="Activar modo automático según dispositivo"
-        >
-          ⚙️ <span class="theme-pill-label">Auto</span>
-        </button>
-      </div>
 
       <!-- Widget de Usuario / Google OAuth -->
       <div class="user-auth-widget">
         @if (authService.currentUser(); as user) {
-          <div class="user-profile-badge" [class]="'badge--' + user.role.toLowerCase()" [title]="user.name + ' (' + user.email + ')'">
+          <div
+            class="user-profile-badge"
+            [class]="'badge--' + user.role.toLowerCase()"
+            [title]="user.name + ' (' + user.email + ')'"
+          >
             <span class="user-badge-emoji">{{ user.emoji }}</span>
-            <span class="user-badge-name">{{ user.name }}</span>
             <button
               type="button"
               class="btn-logout"
               (click)="authService.logout()"
               title="Cerrar sesión"
-              aria-label="Cerrar sesión">
+              aria-label="Cerrar sesión"
+            >
               ✕
             </button>
           </div>
@@ -89,7 +78,8 @@
             class="btn-login"
             (click)="authService.openLoginModal()"
             title="Iniciar sesión con Google"
-            aria-label="Iniciar sesión">
+            aria-label="Iniciar sesión"
+          >
             <span class="login-icon">👤</span>
             <span class="login-text">Ingresar</span>
           </button>
@@ -134,6 +124,17 @@
         <span class="mobile-tab-icon" aria-hidden="true">📋</span>
       </div>
       <span class="mobile-tab-label">Itinerario</span>
+    </a>
+    <a
+      routerLink="/settings"
+      routerLinkActive="mobile-tab--active"
+      class="mobile-tab"
+      aria-label="Abrir Configuración"
+    >
+      <div class="mobile-tab-icon-wrapper">
+        <span class="mobile-tab-icon" aria-hidden="true">⚙️</span>
+      </div>
+      <span class="mobile-tab-label">Ajustes</span>
     </a>
   </nav>
 </div>

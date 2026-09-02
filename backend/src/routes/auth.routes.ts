@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { verifyGoogleToken } from '../services/auth.service';
+import { User } from '../models';
 
 const router = Router();
 
@@ -37,8 +39,41 @@ router.post('/verify', async (req: Request, res: Response) => {
 
     const user = await verifyGoogleToken(idToken);
 
+    // Buscar o crear usuario en la BD
+    const [dbUser] = await User.findOrCreate({
+      where: { googleId: user.id },
+      defaults: {
+        googleId: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+      },
+    });
+
+    // Actualizar datos si cambiaron
+    if (dbUser.name !== user.name || dbUser.picture !== user.picture) {
+      await dbUser.update({ name: user.name, picture: user.picture });
+    }
+
+    // Generar JWT
+    const jwtSecret = process.env.JWT_SECRET || 'super_secret_trip_planner_key';
+    const accessToken = jwt.sign(
+      {
+        userId: dbUser.id,
+        googleId: dbUser.googleId,
+        email: dbUser.email,
+        role: user.role, // Mantenemos el rol dinámico (Daniel/Mafe) en el JWT
+      },
+      jwtSecret,
+      { expiresIn: '7d' }
+    );
+
     return res.json({
-      data: user,
+      data: {
+        ...user,
+        dbId: dbUser.id,
+        accessToken,
+      },
       message: `¡Bienvenido/a ${user.name}!`,
     });
   } catch (error: any) {

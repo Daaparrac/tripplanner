@@ -205,6 +205,50 @@ El script:
 
 ---
 
+## 📦 Actualizaciones del Stage Actual
+
+### 1. 🗓️ Selector de Fechas con Calendario Interactivo
+- Se reemplazaron los inputs separados *Desde / Hasta* por un **calendario unificado** con selección de rango (2 clics).
+- Los días ocupados por un tramo existente se muestran **deshabilitados** con un indicador de punto de color.
+- El día final de un tramo queda **habilitado** para iniciar el siguiente tramo (día de traslado).
+- Al resetear el formulario, se sugiere automáticamente el siguiente `startDate` disponible.
+
+### 2. 🏙️ Modelo `TripDestination` (Parametrización de Ciudades)
+- Nuevo modelo Sequelize `TripDestination` con campos: `id`, `tripId`, `name`, `shortCode`, `startDate`, `endDate`, `color`, `emoji`.
+- Asociación `Trip.hasMany(TripDestination)` con seed automático para CDMX, GDL y CUN.
+- Campo `destinationsList` añadido al modelo `Trip` en frontend y backend.
+- El **Kanban** muestra badges y colores dinámicos basados en `destinationsList`.
+
+### 3. 🗺️ Mapa Auto-Centra según Fecha Seleccionada
+- `TripMapComponent.onDateChange` detecta si la fecha cae dentro del rango de un `TripDestination`.
+- Nuevo método privado `centerOnDestination(destName)` que geocodifica la ciudad y hace pan/zoom del mapa.
+- Al cambiar de fecha, el mapa se mueve automáticamente a la ciudad correspondiente (ej: CDMX → GDL → CUN).
+
+### 4. 🔍 Corrección de Zoom y Llamadas al Viewport
+- Los botones `zoomIn` / `zoomOut` ahora actualizan directamente `map.setZoom()` y la señal interna.
+- Se guardó el effect del mapa para evitar re-disparos innecesarios de `/itinerary?date=`.
+- Se redujo la frecuencia de llamadas a `GetViewportInfo` de Google Maps.
+
+### 5. ✅ Mejoras de Validación
+- `proximityThresholdKm` usa `z.coerce.number()` para aceptar strings de forma segura.
+- Se eliminó el validador hardcodeado de destinos en `Trip.model.ts`; ahora acepta cualquier array de strings.
+
+### 6. 🎨 Polish de UI
+- Puntos indicadores de color en días ocupados del calendario.
+- Paleta de colores consistente: Rosa Mexicano, Verde Bandera, Magenta en marcadores, calendario y Kanban.
+- Tooltips mejorados para días ocupados mostrando ciudad y código.
+
+### 7. 🐛 Corrección del Bug de Zona Horaria (Kanban)
+- Corregido el bug donde mover un ítem (ej: Museo Frida Kahlo) al viernes 23 lo dejaba en sábado 24 al recargar.
+- Se implementó `extractDateStrFromISO` usando `America/Mexico_City` en lugar de truncar UTC.
+- Backend: `buildDayRange` cubre `00:00:00 -06:00` a `23:59:59 -06:00`.
+
+### 8. 📱 PWA & Service Worker
+- Filtro de esquemas no-HTTP en `sw.js` (fix para error `chrome-extension://`).
+- Auto-check de actualizaciones en `main.ts`.
+
+---
+
 ## 📄 Licencia
 
 MIT — Proyecto personal de Daniel & Mafe 💑

@@ -1,6 +1,7 @@
-import { Injectable, inject, signal, computed, NgZone } from '@angular/core';
+import { Injectable, signal, computed, inject, NgZone } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, of, tap } from 'rxjs';
+import { Router } from '@angular/router';
 
 export interface AuthenticatedUser {
   id: string;
@@ -10,6 +11,7 @@ export interface AuthenticatedUser {
   role: 'DANIEL' | 'MAFE' | 'GUEST';
   emoji: string;
   color: string;
+  accessToken?: string;
 }
 
 const STORAGE_KEY = 'mexico_trip_auth_user';
@@ -23,6 +25,7 @@ declare const google: any;
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly ngZone = inject(NgZone);
+  private readonly router = inject(Router);
 
   // ── Signals de Estado de Autenticación ─────────────────────────────────────
 
@@ -32,10 +35,19 @@ export class AuthService {
   readonly isAuthenticating = signal<boolean>(false);
   readonly authError = signal<string | null>(null);
 
+  readonly isLoggedIn = computed(() => this.currentUser() !== null);
+
   private googleClientId = '';
 
   constructor() {
     this.fetchAuthConfig();
+  }
+
+  getToken(): string | null {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(TOKEN_KEY);
+    }
+    return null;
   }
 
   private loadStoredUser(): AuthenticatedUser | null {
@@ -52,21 +64,18 @@ export class AuthService {
   /**
    * Obtiene la configuración de OAuth desde el backend
    */
-  private fetchAuthConfig(): void {
+  private async fetchAuthConfig(): Promise<void> {
     const apiBase = this.getApiBaseUrl();
-    this.http
-      .get<{ data: { googleClientId: string } }>(`${apiBase}/api/auth/config`)
-      .pipe(
-        catchError((err) => {
-          console.warn('[AuthService] No se pudo obtener googleClientId del backend:', err);
-          return of({ data: { googleClientId: '' } });
-        }),
-      )
-      .subscribe((res) => {
-        if (res.data?.googleClientId) {
-          this.googleClientId = res.data.googleClientId;
-        }
-      });
+    try {
+      const response = await fetch(`${apiBase}/api/auth/config`);
+      const res = await response.json();
+      if (res.data?.googleClientId) {
+        this.googleClientId = res.data.googleClientId;
+        console.log('[AuthService] Google Client ID loaded.');
+      }
+    } catch (err) {
+      console.warn('[AuthService] No se pudo obtener googleClientId del backend:', err);
+    }
   }
 
   private getApiBaseUrl(): string {
@@ -106,10 +115,14 @@ export class AuthService {
   renderGoogleButton(containerId: string): void {
     if (typeof window === 'undefined') return;
 
-    this.ensureGoogleScriptLoaded(() => {
+    this.ensureGoogleScriptLoaded(async () => {
       if (typeof google === 'undefined' || !google.accounts?.id) {
         console.warn('[AuthService] Google Identity Services no disponible.');
         return;
+      }
+
+      if (!this.googleClientId) {
+        await this.fetchAuthConfig();
       }
 
       // Si no hay Client ID configurado aún en backend, usa el ID default o prompt
@@ -151,13 +164,13 @@ export class AuthService {
 
       const apiBase = this.getApiBaseUrl();
       this.http
-        .post<{ data: AuthenticatedUser }>(`${apiBase}/api/auth/verify`, {
+        .post<{ data: AuthenticatedUser & { accessToken?: string } }>(`${apiBase}/api/auth/verify`, {
           idToken: response.credential,
         })
         .pipe(
           catchError((err) => {
             console.error('[AuthService] Error verificando con backend:', err);
-            // Fallback: decodificar JWT client-side si el backend no responde
+            // Fallback: decodificar JWT client-side si el backend no responde (sin accessToken)
             try {
               const decoded = this.parseJwt(response.credential!);
               const fallbackUser: AuthenticatedUser = {
@@ -186,8 +199,11 @@ export class AuthService {
         .subscribe((res) => {
           this.isAuthenticating.set(false);
           if (res?.data) {
-            this.setCurrentUser(res.data, response.credential!);
+            // Guardamos el token del backend (accessToken) o usamos el de Google como fallback
+            const tokenToSave = res.data.accessToken || response.credential!;
+            this.setCurrentUser(res.data, tokenToSave);
             this.closeLoginModal();
+            this.router.navigate(['/itinerary']);
           }
         });
     });
@@ -218,8 +234,9 @@ export class AuthService {
             color: '#EC4899',
           };
 
-    this.setCurrentUser(user, 'local-token');
+    this.setCurrentUser(user, 'dummy-token');
     this.closeLoginModal();
+    this.router.navigate(['/itinerary']);
   }
 
   private setCurrentUser(user: AuthenticatedUser, token: string): void {

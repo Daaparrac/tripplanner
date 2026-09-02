@@ -233,7 +233,7 @@ export class ItineraryService {
    * Ejemplo de uso en componente:
    * ```ts
    * this.itineraryService
-   *   .checkProximity$(this.tripId, '2025-10-25')
+   *   .checkProximity$(this.tripId, '2026-10-25')
    *   .subscribe(response => {
    *     if (response.alerts.length > 0) {
    *       // Mostrar alertas en el UI
@@ -265,7 +265,7 @@ export class ItineraryService {
    * Ideal para conectar con un date-picker en la vista.
    *
    * ```ts
-   * readonly selectedDate$ = new BehaviorSubject<string>('2025-10-23');
+   * readonly selectedDate$ = new BehaviorSubject<string>('2026-10-23');
    *
    * readonly proximity$ = this.itineraryService.checkProximityOnDate$(
    *   this.tripId,

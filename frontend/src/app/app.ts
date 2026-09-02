@@ -1,7 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { ThemeService, ThemeMode } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
+import { AppStateService } from './core/services/app-state.service';
 import { LoginModalComponent } from './core/components/login-modal/login-modal.component';
 
 @Component({
@@ -11,9 +12,15 @@ import { LoginModalComponent } from './core/components/login-modal/login-modal.c
   styleUrl: './app.scss',
   templateUrl: './app.html',
 })
-export class App {
+export class App implements OnInit {
   readonly themeService = inject(ThemeService);
   readonly authService  = inject(AuthService);
+  readonly appState     = inject(AppStateService);
+
+  ngOnInit() {
+    this.appState.restoreActiveTripId();
+    this.appState.loadTrips().subscribe();
+  }
 
   get themeMode(): ThemeMode {
     return this.themeService.themeMode();

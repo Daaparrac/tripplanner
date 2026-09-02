@@ -10,9 +10,11 @@ import {
   shareReplay,
   tap,
   catchError,
+  filter,
 } from 'rxjs';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { ItineraryService } from './itinerary.service';
+import { AppStateService } from './app-state.service';
 import type { ItineraryItem, ProximityAlert, Trip } from '../../models/itinerary.model';
 
 // ── Tipos internos del servicio ───────────────────────────────────────────────
@@ -32,25 +34,6 @@ export interface TripMapState {
   proximityAlerts: ProximityAlert[];
 }
 
-// ── Datos mock para demostración (Fase 1 — sin API real aún) ─────────────────
-// Estos datos simulan lo que el backend retornaría para un día de itinerario.
-// En producción, se reemplazan por las llamadas a ItineraryService.
-
-const MOCK_TRIP: Trip = {
-  id: '98d78ff8-83a8-4276-87f8-3b61bc47e4d3',
-  name: 'México 2025 — Daniel & Mafe 🇲🇽',
-  startDate: '2025-10-23',
-  endDate: '2025-11-11',
-  destinations: ['CDMX', 'GUADALAJARA', 'CANCUN'],
-  proximityThresholdKm: 5,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
-
-const MOCK_ITEMS: ItineraryItem[] = [];
-
-export const INITIAL_SAVED_PLACES: ItineraryItem[] = [];
-
 // ── Servicio ──────────────────────────────────────────────────────────────────
 
 /**
@@ -59,11 +42,11 @@ export const INITIAL_SAVED_PLACES: ItineraryItem[] = [];
 @Injectable({ providedIn: 'root' })
 export class TripMapService {
   private readonly itineraryService = inject(ItineraryService);
+  private readonly appState = inject(AppStateService);
 
   // ── Estado interno ────────────────────────────────────────────────────────
 
-  private readonly _selectedTripId$ = new BehaviorSubject<string>(MOCK_TRIP.id);
-  private readonly _selectedDate$ = new BehaviorSubject<string>('2025-10-23');
+  private readonly _selectedDate$ = new BehaviorSubject<string>('2026-10-23');
   private readonly _proximityAlerts$ = new BehaviorSubject<ProximityAlert[]>([]);
   private readonly _refreshTrigger$ = new BehaviorSubject<number>(0);
   private readonly _savedPlaces$ = new BehaviorSubject<ItineraryItem[]>([]);
@@ -71,24 +54,21 @@ export class TripMapService {
   // ── Señales expuestas ─────────────────────────────────────────────────────
 
   /** Señal con el ID del viaje activo */
-  readonly selectedTripId = toSignal(this._selectedTripId$, {
-    initialValue: MOCK_TRIP.id,
-  });
+  readonly selectedTripId = this.appState.activeTripId;
 
   /** Señal con la fecha seleccionada (YYYY-MM-DD) */
   readonly selectedDate = toSignal(this._selectedDate$, {
-    initialValue: '2025-10-25',
+    initialValue: '2026-10-25',
   });
 
   // ── Streams de datos ──────────────────────────────────────────────────────
 
-  readonly activeTripId$: Observable<string> = this._selectedTripId$.pipe(
-    distinctUntilChanged()
+  readonly activeTripId$: Observable<string> = toObservable(this.appState.activeTripId).pipe(
+    filter((id): id is string => id !== null),
+    distinctUntilChanged(),
   );
 
-  readonly selectedDate$: Observable<string> = this._selectedDate$.pipe(
-    distinctUntilChanged()
-  );
+  readonly selectedDate$: Observable<string> = this._selectedDate$.pipe(distinctUntilChanged());
 
   /** Lugares guardados sin fecha asignada (compartidos con Kanban) */
   readonly savedPlaces$: Observable<ItineraryItem[]> = this._savedPlaces$.asObservable();
@@ -98,12 +78,15 @@ export class TripMapService {
    * Se recarga automáticamente al cambiar de viaje, fecha o al disparar _refreshTrigger$.
    */
   readonly items$: Observable<ItineraryItem[]> = combineLatest([
-    this._selectedTripId$,
-    this._selectedDate$,
-    this._refreshTrigger$,
+    this.activeTripId$,
+    this.selectedDate$,
+    this._refreshTrigger$.pipe(distinctUntilChanged()),
   ]).pipe(
-    switchMap(([tripId, date]) => this.fetchItemsForDay(tripId, date)),
-    shareReplay(1)
+    switchMap(([tripId, date]) => {
+      if (!tripId) return of([]);
+      return this.fetchItemsForDay(tripId, date);
+    }),
+    shareReplay(1),
   );
 
   /**
@@ -111,23 +94,23 @@ export class TripMapService {
    * Se recarga automáticamente al modificar o crear items.
    */
   readonly allTripItems$: Observable<ItineraryItem[]> = combineLatest([
-    this._selectedTripId$,
-    this._refreshTrigger$,
+    this.activeTripId$,
+    this._refreshTrigger$.pipe(distinctUntilChanged()),
   ]).pipe(
-    switchMap(([tripId]) =>
-      this.itineraryService.loadItinerary$(tripId).pipe(
+    switchMap(([tripId]) => {
+      if (!tripId) return of([]);
+      return this.itineraryService.loadItinerary$(tripId).pipe(
         catchError((err) => {
           console.warn('[TripMapService] Error loading all trip items:', err.message);
           return of([]);
-        })
-      )
-    ),
-    shareReplay(1)
+        }),
+      );
+    }),
+    shareReplay(1),
   );
 
   /** Alertas de proximidad del día actual */
-  readonly proximityAlerts$: Observable<ProximityAlert[]> =
-    this._proximityAlerts$.asObservable();
+  readonly proximityAlerts$: Observable<ProximityAlert[]> = this._proximityAlerts$.asObservable();
 
   /** Estadísticas del día seleccionado */
   readonly dayStats$: Observable<DayStats> = this.items$.pipe(
@@ -137,11 +120,11 @@ export class TripMapService {
       sharedCount: items.filter((i) => i.type === 'SHARED').length,
       danielCount: items.filter((i) => i.type === 'SOLO_DANIEL').length,
       mafeCount: items.filter((i) => i.type === 'SOLO_MAFE').length,
-    }))
+    })),
   );
 
   /** Metadatos del viaje activo */
-  readonly activeTrip$: Observable<Trip> = of(MOCK_TRIP);
+  readonly activeTrip$: Observable<Trip | null> = toObservable(this.appState.activeTrip);
 
   // ── Acciones públicas ─────────────────────────────────────────────────────
 
@@ -156,7 +139,7 @@ export class TripMapService {
 
   /** Cambia el viaje activo */
   selectTrip(tripId: string): void {
-    this._selectedTripId$.next(tripId);
+    this.appState.setActiveTripId(tripId);
   }
 
   /** Forzar recarga de los items del día actual */
@@ -196,20 +179,17 @@ export class TripMapService {
 
   // ── Helpers internos ──────────────────────────────────────────────────────
 
-  private fetchItemsForDay(
-    tripId: string,
-    date: string
-  ): Observable<ItineraryItem[]> {
+  private fetchItemsForDay(tripId: string, date: string): Observable<ItineraryItem[]> {
     return this.itineraryService.loadItinerary$(tripId, date).pipe(
       map((items) => {
         if (items && items.length > 0) return items;
         // Fallback a datos locales si la base de datos no tiene items para esa fecha
-        return MOCK_ITEMS.filter((item) => item.dateTime?.startsWith(date) ?? false);
+        return [];
       }),
       catchError((err) => {
-        console.warn(`[TripMapService] Falling back to mock data:`, err.message);
-        return of(MOCK_ITEMS.filter((item) => item.dateTime?.startsWith(date) ?? false));
-      })
+        console.warn('[TripMapService] Error fetching itinerary:', err.message);
+        return of([]);
+      }),
     );
   }
 }

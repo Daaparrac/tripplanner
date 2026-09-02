@@ -39,9 +39,14 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event: Network-first for APIs, Stale-while-revalidate for static shell
 self.addEventListener('fetch', (event) => {
+  // Ignorar peticiones que no sean HTTP o HTTPS (ej. chrome-extension://, data:, blob:)
+  if (!event.request.url.startsWith('http')) {
+    return;
+  }
+
   const url = new URL(event.request.url);
 
-  // Skip Google Maps and API calls from strict cache
+  // Omitir llamadas a la API del backend, Google Maps y métodos que no sean GET
   if (
     url.origin.includes('googleapis.com') ||
     url.origin.includes('gstatic.com') ||
@@ -55,10 +60,12 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
+              if (event.request.url.startsWith('http')) {
+                cache.put(event.request, responseToCache).catch(() => {});
+              }
             });
           }
           return networkResponse;

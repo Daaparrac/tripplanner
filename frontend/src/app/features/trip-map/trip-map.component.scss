@@ -111,9 +111,23 @@
   margin-bottom: 16px;
 }
 
-.trip-flag {
-  font-size: 2rem;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+.sidebar-flag-wrap {
+  width: 32px;
+  height: 23px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  .sidebar-flag-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .trip-info {
@@ -929,44 +943,97 @@
   }
 }
 
-// ── Botón Flotante de Ubicación GPS ──────────────────────────────────────────
+// ── Controles Flotantes Personalizados (Glassmorphism) ────────────────────────
 
-.btn-floating-gps {
+.custom-map-controls {
   position: absolute;
-  bottom: 28px;
-  right: 28px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 30;
+
+  @media (max-width: 768px) {
+    top: 14px;
+    right: 14px;
+    gap: 8px;
+  }
+}
+
+.control-pill-group {
+  display: flex;
+  flex-direction: column;
   background: var(--app-surface);
-  border: 1px solid var(--color-shared);
-  color: var(--app-text-primary);
-  font-size: 22px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+
+  .map-ctrl-btn {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+}
+
+.ctrl-divider {
+  width: 80%;
+  height: 1px;
+  background: var(--app-border);
+  margin: 0 auto;
+}
+
+.map-ctrl-btn {
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--app-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  color: var(--app-text-primary);
+  font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 12px rgba(255, 45, 120, 0.35);
-  z-index: 20;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
+  span {
+    line-height: 1;
+    display: inline-block;
+  }
+
   &:hover {
-    transform: scale(1.08);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.85), 0 0 18px rgba(255, 45, 120, 0.5);
+    background: rgba(255, 45, 120, 0.15);
+    border-color: var(--color-shared);
+    color: var(--color-shared);
+    transform: scale(1.06);
+    box-shadow: 0 6px 20px rgba(255, 45, 120, 0.3);
   }
 
   &:active {
-    transform: scale(0.92);
+    transform: scale(0.94);
   }
 
   &--active {
-    border-color: #00E5FF;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 16px rgba(0, 229, 255, 0.45);
+    background: rgba(255, 45, 120, 0.2) !important;
+    border-color: var(--color-shared) !important;
+    box-shadow: 0 0 14px rgba(255, 45, 120, 0.45) !important;
   }
 
-  @media (max-width: 768px) {
-    bottom: 190px;
-    right: 12px;
+  &--loading {
+    animation: spin 1s linear infinite;
+  }
+
+  &--standalone {
+    border-radius: 10px;
   }
 }
 

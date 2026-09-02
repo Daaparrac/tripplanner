@@ -1,12 +1,191 @@
 import { Request, Response, NextFunction } from 'express';
 import { Op } from 'sequelize';
 import { z } from 'zod';
-import { Trip, ItineraryItem } from '../models';
+import { Trip, ItineraryItem, Country, TripDestination } from '../models';
 import { googleMapsService, GoogleMapsServiceError } from '../services/googleMaps.service';
 import { CONSTANTS } from '../config/constants';
 import type { ItineraryItemCreationAttributes } from '../models/ItineraryItem.model';
 
 // ── Schemas de validación (Zod) ───────────────────────────────────────────────
+
+const tripDestinationInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1, 'Destination name is required'),
+  shortCode: z.string().min(1, 'Short code is required'),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate must be YYYY-MM-DD'),
+  color: z.string().default('#06B6D4'),
+  emoji: z.string().default('📍'),
+});
+
+const createTripSchema = z.object({
+  name: z.string().min(1, 'Trip name is required'),
+  countryCode: z.string().min(2).max(5).optional().default('MX'),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate must be YYYY-MM-DD'),
+  destinations: z.array(z.string()).default([]),
+  destinationsList: z.array(tripDestinationInputSchema).optional(),
+  proximityThresholdKm: z.coerce.number().min(0.1).default(5),
+});
+
+const updateTripSchema = z.object({
+  name: z.string().min(1, 'Trip name cannot be empty').optional(),
+  countryCode: z.string().min(2).max(10).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD').optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate must be YYYY-MM-DD').optional(),
+  destinations: z.array(z.string()).optional(),
+  destinationsList: z.array(tripDestinationInputSchema).optional(),
+  proximityThresholdKm: z.coerce.number().min(0.1).optional(),
+});
+
+/**
+ * GET /api/countries
+ * Lista todos los países disponibles sincronizados con FlagCDN.
+ */
+export async function getCountries(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const countries = await Country.findAll({ order: [['name', 'ASC']] });
+    res.json({ data: countries });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/trips
+ * Lista todos los viajes disponibles con sus países y lista de tramos/destinos.
+ */
+export async function getTrips(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const trips = await Trip.findAll({
+      include: [
+        { model: Country, as: 'country' },
+        { model: TripDestination, as: 'destinationsList' },
+      ],
+      order: [
+        ['startDate', 'ASC'],
+        [{ model: TripDestination, as: 'destinationsList' }, 'startDate', 'ASC'],
+      ],
+    });
+    res.json({ data: trips });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/trips
+ * Crea un nuevo viaje y sus tramos de destinos.
+ */
+export async function createTrip(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const body = createTripSchema.parse(req.body);
+    const destinationNames = body.destinationsList && body.destinationsList.length > 0
+      ? body.destinationsList.map((d) => d.name)
+      : body.destinations;
+
+    const trip = await Trip.create({
+      name: body.name,
+      countryCode: body.countryCode?.toLowerCase() || 'mx',
+      startDate: body.startDate,
+      endDate: body.endDate,
+      destinations: destinationNames as any,
+      proximityThresholdKm: body.proximityThresholdKm,
+    });
+
+    if (body.destinationsList && body.destinationsList.length > 0) {
+      await TripDestination.bulkCreate(
+        body.destinationsList.map((d) => ({
+          tripId: trip.id,
+          name: d.name,
+          shortCode: d.shortCode,
+          startDate: d.startDate,
+          endDate: d.endDate,
+          color: d.color || '#06B6D4',
+          emoji: d.emoji || '📍',
+        })),
+      );
+    }
+
+    const createdTrip = await Trip.findByPk(trip.id, {
+      include: [
+        { model: Country, as: 'country' },
+        { model: TripDestination, as: 'destinationsList' },
+      ],
+    });
+
+    res.status(201).json({ data: createdTrip });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * PATCH /api/trips/:tripId
+ * Actualiza la configuración, fechas o datos de un viaje y sus destinos.
+ */
+export async function updateTrip(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { tripId } = req.params;
+    const body = updateTripSchema.parse(req.body);
+
+    const trip = await Trip.findByPk(tripId);
+    if (!trip) {
+      res.status(404).json({ error: 'TRIP_NOT_FOUND', message: 'Viaje no encontrado' });
+      return;
+    }
+
+    if (body.name !== undefined) {
+      trip.name = body.name;
+    }
+    if (body.countryCode !== undefined) {
+      trip.countryCode = body.countryCode.toLowerCase();
+    }
+    if (body.startDate !== undefined) {
+      trip.startDate = body.startDate;
+    }
+    if (body.endDate !== undefined) {
+      trip.endDate = body.endDate;
+    }
+    if (body.proximityThresholdKm !== undefined) {
+      trip.proximityThresholdKm = body.proximityThresholdKm;
+    }
+
+    if (body.destinationsList !== undefined) {
+      // Reemplazar destinos transaccionalmente
+      await TripDestination.destroy({ where: { tripId } });
+      if (body.destinationsList.length > 0) {
+        await TripDestination.bulkCreate(
+          body.destinationsList.map((d) => ({
+            tripId,
+            name: d.name,
+            shortCode: d.shortCode,
+            startDate: d.startDate,
+            endDate: d.endDate,
+            color: d.color || '#06B6D4',
+            emoji: d.emoji || '📍',
+          })),
+        );
+      }
+      trip.destinations = body.destinationsList.map((d) => d.name) as any;
+    } else if (body.destinations !== undefined) {
+      trip.destinations = body.destinations as any;
+    }
+
+    await trip.save();
+
+    const updatedTrip = await Trip.findByPk(tripId, {
+      include: [
+        { model: Country, as: 'country' },
+        { model: TripDestination, as: 'destinationsList' },
+      ],
+    });
+
+    res.json({ data: updatedTrip });
+  } catch (error) {
+    next(error);
+  }
+}
 
 const addItemSchema = z.object({
   tripId: z.string().uuid('tripId must be a valid UUID'),
@@ -27,8 +206,6 @@ const checkProximitySchema = z.object({
   tripId: z.string().uuid('tripId must be a valid UUID'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format'),
 });
-
-// ── Tipos de respuesta ────────────────────────────────────────────────────────
 
 export interface ProximityAlert {
   danielItem: {
@@ -60,59 +237,14 @@ export interface ProximityCheckResponse {
   alerts: ProximityAlert[];
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 /**
  * Construye el rango de tiempo para consultar un día completo.
- * Usa UTC midnight → next day midnight.
+ * Abarca el día local completo considerando offsets de zona horaria (ej: México UTC-6).
  */
 function buildDayRange(dateStr: string): { start: Date; end: Date } {
-  const start = new Date(`${dateStr}T00:00:00.000Z`);
-  const end = new Date(`${dateStr}T23:59:59.999Z`);
+  const start = new Date(`${dateStr}T00:00:00.000-06:00`);
+  const end = new Date(`${dateStr}T23:59:59.999-06:00`);
   return { start, end };
-}
-
-// ── Controlador ───────────────────────────────────────────────────────────────
-
-const createTripSchema = z.object({
-  name: z.string().min(1, 'Trip name is required'),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD'),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate must be YYYY-MM-DD'),
-  destinations: z.array(z.enum(['CDMX', 'GUADALAJARA', 'CANCUN'])).default([]),
-  proximityThresholdKm: z.number().min(0.1).default(5),
-});
-
-/**
- * GET /api/trips
- * Lista todos los viajes disponibles.
- */
-export async function getTrips(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const trips = await Trip.findAll({ order: [['startDate', 'ASC']] });
-    res.json({ data: trips });
-  } catch (error) {
-    next(error);
-  }
-}
-
-/**
- * POST /api/trips
- * Crea un nuevo viaje.
- */
-export async function createTrip(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const body = createTripSchema.parse(req.body);
-    const trip = await Trip.create({
-      name: body.name,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      destinations: body.destinations,
-      proximityThresholdKm: body.proximityThresholdKm,
-    });
-    res.status(201).json({ data: trip });
-  } catch (error) {
-    next(error);
-  }
 }
 
 /**
@@ -312,7 +444,7 @@ export async function checkProximity(
 
         // Verificar solapamiento temporal
         const timeDiffMs = Math.abs(
-          danielItem.dateTime.getTime() - mafeItem.dateTime.getTime()
+          danielItem.dateTime!.getTime() - mafeItem.dateTime!.getTime()
         );
 
         if (timeDiffMs > overlapWindowMs) {

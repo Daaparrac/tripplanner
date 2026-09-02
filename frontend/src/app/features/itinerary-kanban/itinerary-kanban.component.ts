@@ -6,6 +6,7 @@ import {
   signal,
   computed,
   ChangeDetectorRef,
+  effect,
 } from '@angular/core';
 import { NgClass, LowerCasePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -19,6 +20,7 @@ import { Subject, takeUntil } from 'rxjs';
 
 import { TripMapService } from '../../core/services/trip-map.service';
 import { ItineraryService } from '../../core/services/itinerary.service';
+import { AppStateService } from '../../core/services/app-state.service';
 import type {
   ItineraryItem,
   ItemType,
@@ -35,17 +37,18 @@ export interface KanbanColumn {
   items: ItineraryItem[];
   isUnscheduled?: boolean;
   isWeekend?: boolean;
-  destination?: Destination; // Destino asignado al día
+  destination?: Destination; // Destino asignado al día (retrocompatibilidad)
+  destinationMeta?: { label: string; shortCode: string; emoji: string; color: string } | null;
 }
 
-type Destination = 'CDMX' | 'GDL' | 'CUN';
+type Destination = string;
 type SyncStatus = 'idle' | 'syncing' | 'saved' | 'error';
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
 const UNSCHEDULED_ID = 'unscheduled';
-const TRIP_START = '2025-10-23';
-const TRIP_END = '2025-11-11';
+const TRIP_START = '2026-10-23';
+const TRIP_END = '2026-11-11';
 
 const DAY_NAMES_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as const;
 const MONTH_NAMES_ES = [
@@ -68,26 +71,26 @@ const MONTH_NAMES_ES = [
  * Ajusta estos rangos si el itinerario cambia.
  */
 const DESTINATION_MAP: Record<string, Destination> = {
-  '2025-10-23': 'CDMX',
-  '2025-10-24': 'CDMX',
-  '2025-10-25': 'CDMX',
-  '2025-10-26': 'CDMX',
-  '2025-10-27': 'CDMX',
-  '2025-10-28': 'CDMX',
-  '2025-10-29': 'CDMX',
-  '2025-10-30': 'CDMX',
-  '2025-10-31': 'CDMX',
-  '2025-11-01': 'GDL',
-  '2025-11-02': 'GDL',
-  '2025-11-03': 'GDL',
-  '2025-11-04': 'GDL',
-  '2025-11-05': 'CUN',
-  '2025-11-06': 'CUN',
-  '2025-11-07': 'CUN',
-  '2025-11-08': 'CUN',
-  '2025-11-09': 'CUN',
-  '2025-11-10': 'CUN',
-  '2025-11-11': 'CUN',
+  '2026-10-23': 'CDMX',
+  '2026-10-24': 'CDMX',
+  '2026-10-25': 'CDMX',
+  '2026-10-26': 'CDMX',
+  '2026-10-27': 'CDMX',
+  '2026-10-28': 'CDMX',
+  '2026-10-29': 'CDMX',
+  '2026-10-30': 'CDMX',
+  '2026-10-31': 'CDMX',
+  '2026-11-01': 'GDL',
+  '2026-11-02': 'GDL',
+  '2026-11-03': 'GDL',
+  '2026-11-04': 'GDL',
+  '2026-11-05': 'CUN',
+  '2026-11-06': 'CUN',
+  '2026-11-07': 'CUN',
+  '2026-11-08': 'CUN',
+  '2026-11-09': 'CUN',
+  '2026-11-10': 'CUN',
+  '2026-11-11': 'CUN',
 };
 
 const DESTINATION_META: Record<Destination, { label: string; flag: string; color: string }> = {
@@ -117,14 +120,16 @@ const MOCK_SAVED_PLACES: ItineraryItem[] = [];
 export class ItineraryKanbanComponent implements OnInit, OnDestroy {
   // ── Servicios ─────────────────────────────────────────────────────────────
 
-  private readonly tripMapService = inject(TripMapService);
-  private readonly itineraryService = inject(ItineraryService);
+  readonly tripMapService = inject(TripMapService);
+  readonly itineraryService = inject(ItineraryService);
+  readonly appState = inject(AppStateService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
 
   // ── Estado del tablero ────────────────────────────────────────────────────
 
   columns: KanbanColumn[] = [];
+  private cachedItems: ItineraryItem[] = [];
 
   // ── Signals de UI ─────────────────────────────────────────────────────────
 
@@ -139,14 +144,14 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
   readonly isUpdating = signal<boolean>(false);
   readonly isDeleting = signal<string | null>(null);
 
-  editFormDate = '2025-10-23';
+  editFormDate = '2026-10-23';
   editFormTime = '12:00';
   editFormDuration = 60;
   editFormType: ItemType = 'SHARED';
   editFormNotes = '';
 
-  readonly minDate = '2025-10-23';
-  readonly maxDate = '2025-11-11';
+  minDate = '2026-10-23';
+  maxDate = '2026-11-11';
 
   /** Columna seleccionada en el quick-switcher móvil */
   readonly activeColumnId = signal<string>('unscheduled');
@@ -170,8 +175,26 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
+  constructor() {
+    effect(() => {
+      const trip = this.appState.activeTrip();
+      if (trip && trip.startDate && trip.endDate) {
+        this.minDate = trip.startDate;
+        this.maxDate = trip.endDate;
+        this.editFormDate = trip.startDate;
+        this.buildColumns(trip.startDate, trip.endDate);
+        if (this.cachedItems.length > 0) {
+          this.distributeItemsToColumns(this.cachedItems);
+        }
+        this.tripMapService.selectDate(trip.startDate);
+        this.tripMapService.refresh();
+      } else {
+        this.columns = [];
+      }
+    });
+  }
+
   ngOnInit(): void {
-    this.buildColumns();
     this.subscribeToItems();
   }
 
@@ -180,9 +203,30 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  getFlagUrl(countryCode?: string, size: 'w40' | 'w80' = 'w80'): string {
+    const code = (countryCode || 'mx').toLowerCase();
+    return `https://flagcdn.com/${size}/${code}.png`;
+  }
+
+  formatTripDates(start?: string, end?: string): string {
+    if (!start || !end) return '';
+    try {
+      const s = new Date(`${start}T12:00:00`);
+      const e = new Date(`${end}T12:00:00`);
+      const sMonth = MONTH_NAMES_ES[s.getMonth()];
+      const eMonth = MONTH_NAMES_ES[e.getMonth()];
+      if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+        return `${sMonth} ${s.getDate()} – ${e.getDate()}, ${s.getFullYear()}`;
+      }
+      return `${sMonth} ${s.getDate()} – ${eMonth} ${e.getDate()}, ${e.getFullYear()}`;
+    } catch {
+      return `${start} – ${end}`;
+    }
+  }
+
   // ── Construcción de columnas ──────────────────────────────────────────────
 
-  private buildColumns(): void {
+  private buildColumns(startDate: string, endDate: string): void {
     const unscheduledColumn: KanbanColumn = {
       id: UNSCHEDULED_ID,
       label: 'Lugares Guardados',
@@ -190,33 +234,106 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
       items: [...MOCK_SAVED_PLACES], // Copia para evitar mutaciones en mock
     };
 
-    const dayColumns: KanbanColumn[] = this.generateTripDates().map((date) => ({
-      id: date,
-      date,
-      label: this.formatDateLabel(date),
-      items: [],
-      isWeekend: this.isWeekend(date),
-      destination: DESTINATION_MAP[date],
-    }));
+    const dayColumns: KanbanColumn[] = this.generateTripDates(startDate, endDate).map((date) => {
+      const destMeta = this.getDestinationForDate(date);
+      return {
+        id: date,
+        date,
+        label: this.formatDateLabel(date),
+        items: [],
+        isWeekend: this.isWeekend(date),
+        destination: destMeta?.shortCode || DESTINATION_MAP[date],
+        destinationMeta: destMeta,
+      };
+    });
 
     this.columns = [unscheduledColumn, ...dayColumns];
   }
 
+  /**
+   * Resuelve los metadatos del destino/ciudad para una fecha determinada.
+   * Prioriza la lista de tramos estructurados `destinationsList` del viaje activo.
+   */
+  getDestinationForDate(date: string): { label: string; shortCode: string; emoji: string; color: string } | null {
+    const trip = this.appState.activeTrip();
+    if (trip && trip.destinationsList && trip.destinationsList.length > 0) {
+      const match = trip.destinationsList.find((d) => date >= d.startDate && date <= d.endDate);
+      if (match) {
+        return {
+          label: match.name,
+          shortCode: match.shortCode,
+          emoji: match.emoji || '📍',
+          color: match.color || '#06B6D4',
+        };
+      }
+    }
+
+    // Fallback por defecto si no hay lista parametrizada aún
+    const fallbackCode = DESTINATION_MAP[date];
+    if (fallbackCode && (DESTINATION_META as any)[fallbackCode]) {
+      const meta = (DESTINATION_META as any)[fallbackCode];
+      return {
+        label: meta.label,
+        shortCode: fallbackCode,
+        emoji: meta.flag,
+        color: meta.color,
+      };
+    }
+
+    return null;
+  }
+
   /** Genera el array de fechas del viaje en formato YYYY-MM-DD */
-  private generateTripDates(): string[] {
+  private generateTripDates(startDateStr: string, endDateStr: string): string[] {
     const dates: string[] = [];
-    const start = new Date(`${TRIP_START}T12:00:00`);
-    const end = new Date(`${TRIP_END}T12:00:00`);
+    const start = new Date(`${startDateStr}T12:00:00`);
+    const end = new Date(`${endDateStr}T12:00:00`);
     const current = new Date(start);
 
     while (current <= end) {
       dates.push(current.toISOString().split('T')[0]);
       current.setDate(current.getDate() + 1);
     }
-    return dates; // 20 fechas
+    return dates;
   }
 
   // ── Suscripción a items del servicio ──────────────────────────────────────
+
+  private distributeItemsToColumns(items: ItineraryItem[]): void {
+    if (!this.columns || this.columns.length === 0) return;
+    const unscheduledCol = this.columns.find((c) => c.isUnscheduled);
+
+    // Limpiar columnas de día
+    this.columns.filter((c) => !c.isUnscheduled).forEach((c) => (c.items = []));
+    if (unscheduledCol) {
+      unscheduledCol.items = [];
+    }
+
+    items.forEach((item) => {
+      if (!item.dateTime) {
+        if (unscheduledCol && !unscheduledCol.items.find((i) => i.id === item.id)) {
+          unscheduledCol.items.push(item);
+        }
+      } else {
+        const dateKey = this.extractDateStrFromISO(item.dateTime);
+        const column = this.columns.find((c) => c.id === dateKey);
+        if (column) column.items.push(item);
+      }
+    });
+
+    // Ordenar cronológicamente (solo columnas de día, ignorando nulls)
+    this.columns
+      .filter((c) => !c.isUnscheduled)
+      .forEach((c) => {
+        c.items.sort((a, b) => {
+          if (!a.dateTime) return 1;
+          if (!b.dateTime) return -1;
+          return new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
+        });
+      });
+
+    this.cdr.markForCheck();
+  }
 
   private subscribeToItems(): void {
     // Cargar lugares guardados desde el backend (dateTime IS NULL)
@@ -229,37 +346,8 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
     });
 
     this.tripMapService.allTripItems$.pipe(takeUntil(this.destroy$)).subscribe((items) => {
-      // Separar: items sin fecha van a Guardados, con fecha van a su columna
-      const unscheduledCol = this.columns.find((c) => c.isUnscheduled);
-
-      // Limpiar columnas de día
-      this.columns.filter((c) => !c.isUnscheduled).forEach((c) => (c.items = []));
-
-      items.forEach((item) => {
-        if (!item.dateTime) {
-          // Item guardado sin fecha: va a columna Lugares Guardados
-          if (unscheduledCol && !unscheduledCol.items.find((i) => i.id === item.id)) {
-            unscheduledCol.items.push(item);
-          }
-        } else {
-          const dateKey = item.dateTime.substring(0, 10);
-          const column = this.columns.find((c) => c.id === dateKey);
-          if (column) column.items.push(item);
-        }
-      });
-
-      // Ordenar cronológicamente (solo columnas de día, ignorando nulls)
-      this.columns
-        .filter((c) => !c.isUnscheduled)
-        .forEach((c) => {
-          c.items.sort((a, b) => {
-            if (!a.dateTime) return 1;
-            if (!b.dateTime) return -1;
-            return new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
-          });
-        });
-
-      this.cdr.markForCheck();
+      this.cachedItems = items || [];
+      this.distributeItemsToColumns(this.cachedItems);
     });
   }
 
@@ -324,6 +412,7 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
    */
   private syncItemToColumn(item: ItineraryItem, targetColId: string, sourceColId: string): void {
     const tripId = this.tripMapService.selectedTripId();
+    if (!tripId) return;
 
     if (targetColId === UNSCHEDULED_ID) {
       // ── Movido a "Lugares Guardados" → PATCH dateTime = null ─────────────
@@ -416,6 +505,21 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
    * Convertir con Intl.DateTimeFormat garantiza que el usuario siempre ve
    * y opera con la hora correcta independientemente del timezone del navegador.
    */
+  /**
+   * Extrae la fecha YYYY-MM-DD en zona horaria local de México/destino.
+   * Evita el desfase de día que ocurre al leer el prefijo UTC directamente.
+   */
+  private extractDateStrFromISO(dateTime: string): string {
+    if (!dateTime) return '';
+    try {
+      const d = new Date(dateTime);
+      if (isNaN(d.getTime())) return dateTime.substring(0, 10);
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+    } catch {
+      return dateTime.substring(0, 10);
+    }
+  }
+
   private extractTimeFromISO(dateTime: string): string {
     if (!dateTime) return '12:00';
     const d = new Date(dateTime);
@@ -430,7 +534,7 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
 
   /**
    * Construye un ISO string en zona horaria de México para enviar al backend.
-   * Input: 'YYYY-MM-DD' + 'HH:mm'  →  Output: '2025-10-24T12:00:00-06:00'
+   * Input: 'YYYY-MM-DD' + 'HH:mm'  →  Output: '2026-10-24T12:00:00-06:00'
    */
   private buildMexicoDateTime(dateStr: string, time: string): string {
     const [hours, minutes] = time.split(':');
@@ -460,10 +564,10 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
     // Extraer fecha y hora en zona horaria de México
     const dateStr = item.dateTime
       ? new Date(item.dateTime).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
-      : '2025-10-23';
+      : '2026-10-23';
     const timeStr = item.dateTime ? this.extractTimeFromISO(item.dateTime) : '12:00';
 
-    this.editFormDate = dateStr || '2025-10-23';
+    this.editFormDate = dateStr || '2026-10-23';
     this.editFormTime = timeStr || '12:00';
     this.editFormDuration = item.durationMinutes || 60;
     this.editFormType = item.type;
@@ -486,6 +590,10 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
 
     this.isUpdating.set(true);
     const tripId = this.tripMapService.selectedTripId();
+    if (!tripId) {
+      this.isUpdating.set(false);
+      return;
+    }
     const dateTime = `${this.editFormDate}T${this.editFormTime || '12:00'}:00-06:00`;
 
     const ownerId: OwnerId =
@@ -552,6 +660,10 @@ export class ItineraryKanbanComponent implements OnInit, OnDestroy {
 
     this.isDeleting.set(item.id);
     const tripId = this.tripMapService.selectedTripId();
+    if (!tripId) {
+      this.isDeleting.set(null);
+      return;
+    }
 
     // Eliminar localmente de las columnas inmediatamente
     this.columns.forEach((col) => {

@@ -1,5 +1,4 @@
 <section class="trip-map-layout" aria-label="Mapa interactivo del itinerario">
-
   <!-- ── Barra de Segmentación Táctil para Móviles (S25 Ultra / iPhone 17) ── -->
   <div class="mobile-view-toggle" role="tablist" aria-label="Alternar vista móvil">
     <button
@@ -8,7 +7,8 @@
       class="mobile-toggle-btn"
       [class.mobile-toggle-btn--active]="mobileViewMode() === 'map'"
       (click)="setMobileViewMode('map')"
-      aria-label="Ver mapa en pantalla completa">
+      aria-label="Ver mapa en pantalla completa"
+    >
       🗺️ Mapa
     </button>
     <button
@@ -17,7 +17,8 @@
       class="mobile-toggle-btn"
       [class.mobile-toggle-btn--active]="mobileViewMode() === 'panel'"
       (click)="setMobileViewMode('panel')"
-      aria-label="Ver lista de lugares y búsqueda">
+      aria-label="Ver lista de lugares y búsqueda"
+    >
       📋 Lugares ({{ items().length }})
     </button>
   </div>
@@ -28,15 +29,23 @@
   <aside
     class="map-sidebar"
     [class.mobile-sidebar-hidden]="mobileViewMode() === 'map'"
-    aria-label="Panel de planificación">
-
+    aria-label="Panel de planificación"
+  >
     <!-- Header -->
     <header class="sidebar-header">
       <div class="trip-badge">
-        <span class="trip-flag">🇲🇽</span>
+        <div class="sidebar-flag-wrap">
+          <img
+            [src]="getFlagUrl(appState.activeTrip()?.countryCode, 'w40')"
+            [alt]="appState.activeTrip()?.countryCode || 'Trip'"
+            class="sidebar-flag-img"
+          />
+        </div>
         <div class="trip-info">
-          <h1 class="trip-title">México 2025</h1>
-          <p class="trip-dates">Oct 23 – Nov 11</p>
+          <h1 class="trip-title">{{ appState.activeTrip()?.name || 'Itinerario' }}</h1>
+          <p class="trip-dates">
+            {{ formatTripDates(appState.activeTrip()?.startDate, appState.activeTrip()?.endDate) }}
+          </p>
         </div>
       </div>
 
@@ -82,8 +91,15 @@
     <div class="section">
       <label class="section-label" for="searchInput">🔍 Añadir lugar</label>
       <div class="search-wrapper">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        <svg
+          class="search-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
         </svg>
         <input
           #searchInput
@@ -101,7 +117,9 @@
         <div class="place-preview" role="region" aria-label="Lugar seleccionado">
           <div class="place-preview-header">
             <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+              />
             </svg>
             <div class="place-preview-info">
               <h4 class="place-name">{{ selectedPlace()!.placeName }}</h4>
@@ -111,7 +129,8 @@
               class="btn-close-preview"
               (click)="cancelPlaceSelection()"
               title="Cancelar selección"
-              aria-label="Cerrar selección">
+              aria-label="Cerrar selección"
+            >
               ×
             </button>
           </div>
@@ -122,14 +141,16 @@
               type="button"
               class="mode-toggle-btn"
               [class.mode-toggle-btn--active]="formMode === 'SCHEDULED'"
-              (click)="setFormMode('SCHEDULED')">
+              (click)="setFormMode('SCHEDULED')"
+            >
               📅 Programar día
             </button>
             <button
               type="button"
               class="mode-toggle-btn"
               [class.mode-toggle-btn--active]="formMode === 'SAVED'"
-              (click)="setFormMode('SAVED')">
+              (click)="setFormMode('SAVED')"
+            >
               📌 Guardar (Kanban)
             </button>
           </div>
@@ -151,12 +172,7 @@
 
               <div class="form-field form-field--half">
                 <label class="form-label" for="formTimeInput">Hora (opcional)</label>
-                <input
-                  id="formTimeInput"
-                  type="time"
-                  class="form-input"
-                  [(ngModel)]="formTime"
-                />
+                <input id="formTimeInput" type="time" class="form-input" [(ngModel)]="formTime" />
               </div>
             </div>
           }
@@ -169,21 +185,24 @@
                 type="button"
                 class="type-btn type-shared"
                 [class.type-btn--selected]="formType === 'SHARED'"
-                (click)="setFormType('SHARED')">
+                (click)="setFormType('SHARED')"
+              >
                 👥 Compartida
               </button>
               <button
                 type="button"
                 class="type-btn type-daniel"
                 [class.type-btn--selected]="formType === 'SOLO_DANIEL'"
-                (click)="setFormType('SOLO_DANIEL')">
+                (click)="setFormType('SOLO_DANIEL')"
+              >
                 🧑 Daniel
               </button>
               <button
                 type="button"
                 class="type-btn type-mafe"
                 [class.type-btn--selected]="formType === 'SOLO_MAFE'"
-                (click)="setFormType('SOLO_MAFE')">
+                (click)="setFormType('SOLO_MAFE')"
+              >
                 👩 Mafe
               </button>
             </div>
@@ -207,7 +226,8 @@
               type="button"
               class="btn-submit-place"
               (click)="submitPlace()"
-              [disabled]="isSaving()">
+              [disabled]="isSaving()"
+            >
               @if (isSaving()) {
                 <span class="spinner"></span> Guardando...
               } @else {
@@ -218,7 +238,8 @@
               type="button"
               class="btn-cancel-place"
               (click)="cancelPlaceSelection()"
-              [disabled]="isSaving()">
+              [disabled]="isSaving()"
+            >
               Cancelar
             </button>
           </div>
@@ -235,7 +256,8 @@
             class="btn-route"
             (click)="buildRoute()"
             [disabled]="items().length < 2 || isLoadingRoute()"
-            aria-label="Trazar ruta del día">
+            aria-label="Trazar ruta del día"
+          >
             @if (isLoadingRoute()) {
               <span class="spinner"></span> Cargando...
             } @else {
@@ -246,7 +268,8 @@
             class="btn-proximity"
             (click)="checkProximity()"
             [disabled]="items().length < 2"
-            aria-label="Verificar distancias entre actividades individuales">
+            aria-label="Verificar distancias entre actividades individuales"
+          >
             📍 Verificar
           </button>
         </div>
@@ -259,8 +282,8 @@
           [class.proximity-status-box--success]="proximityStatus()!.type === 'success'"
           [class.proximity-status-box--warning]="proximityStatus()!.type === 'warning'"
           [class.proximity-status-box--info]="proximityStatus()!.type === 'info'"
-          role="alert">
-
+          role="alert"
+        >
           <div class="proximity-status-header">
             <span class="status-msg-title">{{ proximityStatus()!.message }}</span>
             <button
@@ -268,7 +291,8 @@
               class="btn-close-status"
               (click)="clearProximityStatus()"
               title="Cerrar"
-              aria-label="Cerrar notificación">
+              aria-label="Cerrar notificación"
+            >
               ×
             </button>
           </div>
@@ -283,12 +307,14 @@
               @for (alert of proximityAlerts(); track alert.danielItem.id) {
                 <div class="alert-card">
                   <div class="alert-participants">
-                    <span class="alert-participant daniel">🧑 {{ alert.danielItem.placeName }}</span>
+                    <span class="alert-participant daniel"
+                      >🧑 {{ alert.danielItem.placeName }}</span
+                    >
                     <span class="alert-vs">vs</span>
                     <span class="alert-participant mafe">👩 {{ alert.mafeItem.placeName }}</span>
                   </div>
                   <div class="alert-distance">
-                    <span class="distance-value">{{ alert.distanceKm | number:'1.1-1' }} km</span>
+                    <span class="distance-value">{{ alert.distanceKm | number: '1.1-1' }} km</span>
                     <span class="distance-time">· {{ alert.durationText }}</span>
                   </div>
                   <p class="alert-message">{{ alert.message }}</p>
@@ -309,8 +335,8 @@
             role="button"
             [attr.aria-label]="'Ir a ' + item.placeName"
             tabindex="0"
-            (keydown.enter)="onMarkerClick(item)">
-
+            (keydown.enter)="onMarkerClick(item)"
+          >
             <span class="activity-index">{{ i + 1 }}</span>
 
             <div class="activity-type-dot" [style.background]="getItemColor(item.type)">
@@ -322,7 +348,11 @@
               <div class="activity-meta">
                 <span class="activity-time">⏰ {{ formatTime(item.dateTime) }}</span>
                 <span class="activity-duration">⏱ {{ item.durationMinutes }} min</span>
-                <span class="activity-type-badge" [style.background]="getItemColor(item.type) + '22'" [style.color]="getItemColor(item.type)">
+                <span
+                  class="activity-type-badge"
+                  [style.background]="getItemColor(item.type) + '22'"
+                  [style.color]="getItemColor(item.type)"
+                >
                   {{ getTypeLabel(item.type) }}
                 </span>
               </div>
@@ -338,7 +368,8 @@
                 class="btn-card-action btn-edit"
                 (click)="openEditModal(item, $event)"
                 title="Editar actividad"
-                aria-label="Editar">
+                aria-label="Editar"
+              >
                 ✏️
               </button>
               <button
@@ -347,7 +378,8 @@
                 (click)="openDeleteModal(item, $event)"
                 [disabled]="isDeleting() === item.id"
                 title="Eliminar actividad"
-                aria-label="Eliminar">
+                aria-label="Eliminar"
+              >
                 @if (isDeleting() === item.id) {
                   <span class="mini-spinner"></span>
                 } @else {
@@ -365,7 +397,6 @@
         }
       </ul>
     </div>
-
   </aside>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -375,8 +406,8 @@
     class="map-wrapper"
     [class.mobile-map-hidden]="mobileViewMode() === 'panel'"
     role="main"
-    aria-label="Mapa interactivo">
-
+    aria-label="Mapa interactivo"
+  >
     <google-map
       #googleMapRef
       height="100%"
@@ -384,51 +415,104 @@
       [center]="center()"
       [zoom]="zoom()"
       [options]="mapOptions()"
-      aria-label="Mapa de Google con actividades del itinerario">
-
+      aria-label="Mapa de Google con actividades del itinerario"
+    >
       <!-- Marcadores SVG por tipo de actividad -->
       @for (marker of markerConfigs(); track marker.item.id) {
         <map-marker
           [position]="marker.position"
           [options]="marker.options"
           (mapClick)="onMarkerClick(marker.item)"
-          [attr.aria-label]="marker.item.placeName">
+          [attr.aria-label]="marker.item.placeName"
+        >
         </map-marker>
       }
 
       <!-- Marcador de Ubicación Actual en Vivo (GPS) -->
       @if (userLocation()) {
-        <map-marker
-          [position]="userLocation()!"
-          [options]="userMarkerOptions()">
-        </map-marker>
+        <map-marker [position]="userLocation()!" [options]="userMarkerOptions()"> </map-marker>
       }
 
       <!-- Ruta diaria trazada -->
       @if (directionsResult()) {
-        <map-directions-renderer
-          [directions]="directionsResult()!"
-          [options]="rendererOptions">
+        <map-directions-renderer [directions]="directionsResult()!" [options]="rendererOptions">
         </map-directions-renderer>
       }
-
     </google-map>
 
-    <!-- Botón Flotante de Mi Ubicación GPS -->
-    <button
-      type="button"
-      class="btn-floating-gps"
-      [class.btn-floating-gps--active]="userLocation() !== null"
-      (click)="locateUser(true)"
-      [disabled]="isLocating()"
-      title="Centrar en mi ubicación actual (GPS)"
-      aria-label="Centrar en mi ubicación actual">
-      @if (isLocating()) {
-        <span class="mini-spinner"></span>
-      } @else {
-        🎯
-      }
-    </button>
+    <!-- ── Controles Flotantes Personalizados del Mapa (Glassmorphism OLED / Light) ── -->
+    <div class="custom-map-controls" role="toolbar" aria-label="Controles del mapa">
+      <!-- Grupo Zoom -->
+      <div class="control-pill-group">
+        <button
+          type="button"
+          class="map-ctrl-btn"
+          (click)="zoomIn()"
+          title="Acercar mapa (+)"
+          aria-label="Acercar mapa"
+        >
+          <span>➕</span>
+        </button>
+        <div class="ctrl-divider"></div>
+        <button
+          type="button"
+          class="map-ctrl-btn"
+          (click)="zoomOut()"
+          title="Alejar mapa (-)"
+          aria-label="Alejar mapa"
+        >
+          <span>➖</span>
+        </button>
+      </div>
+
+      <!-- Centrar en Viaje / Actividades -->
+      <button
+        type="button"
+        class="map-ctrl-btn map-ctrl-btn--standalone"
+        (click)="fitMapToTrip()"
+        title="Centrar en el viaje / Actividades"
+        aria-label="Centrar en el viaje"
+      >
+        <span>🎯</span>
+      </button>
+
+      <!-- GPS Mi Ubicación -->
+      <button
+        type="button"
+        class="map-ctrl-btn map-ctrl-btn--standalone"
+        [class.map-ctrl-btn--active]="userLocation() !== null"
+        [class.map-ctrl-btn--loading]="isLocating()"
+        (click)="locateUser(true)"
+        [disabled]="isLocating()"
+        title="Mi ubicación actual (GPS)"
+        aria-label="Mi ubicación GPS"
+      >
+        <span>{{ isLocating() ? '⌛' : '📍' }}</span>
+      </button>
+
+      <!-- Toggle Satélite / Mapa Estilo -->
+      <button
+        type="button"
+        class="map-ctrl-btn map-ctrl-btn--standalone"
+        [class.map-ctrl-btn--active]="mapTypeId() === 'hybrid'"
+        (click)="toggleMapType()"
+        title="Alternar vista Satélite / Mapa"
+        aria-label="Alternar vista Satélite"
+      >
+        <span>{{ mapTypeId() === 'hybrid' ? '🗺️' : '🛰️' }}</span>
+      </button>
+
+      <!-- Pantalla Completa -->
+      <button
+        type="button"
+        class="map-ctrl-btn map-ctrl-btn--standalone"
+        (click)="toggleFullscreen()"
+        title="Pantalla completa"
+        aria-label="Pantalla completa"
+      >
+        <span>⛶</span>
+      </button>
+    </div>
 
     @if (locationError()) {
       <div class="gps-error-toast" role="alert">
@@ -443,12 +527,13 @@
         class="marker-tooltip"
         role="dialog"
         aria-label="Información del lugar"
-        aria-modal="true">
-
+        aria-modal="true"
+      >
         <button
           class="tooltip-close"
           (click)="activeItem.set(null)"
-          aria-label="Cerrar información">
+          aria-label="Cerrar información"
+        >
           ×
         </button>
 
@@ -467,7 +552,8 @@
           <span
             class="tooltip-badge"
             [style.background]="getItemColor(activeItem()!.type) + '22'"
-            [style.color]="getItemColor(activeItem()!.type)">
+            [style.color]="getItemColor(activeItem()!.type)"
+          >
             {{ getTypeLabel(activeItem()!.type) }}
           </span>
 
@@ -480,13 +566,15 @@
             <button
               type="button"
               class="btn-tooltip-action btn-tooltip-edit"
-              (click)="openEditModal(activeItem()!)">
+              (click)="openEditModal(activeItem()!)"
+            >
               ✏️ Editar
             </button>
             <button
               type="button"
               class="btn-tooltip-action btn-tooltip-delete"
-              (click)="openDeleteModal(activeItem()!)">
+              (click)="openDeleteModal(activeItem()!)"
+            >
               🗑️ Eliminar
             </button>
           </div>
@@ -498,10 +586,11 @@
     @if (directionsResult()) {
       <div class="route-badge" role="status">
         🛣️ Ruta del día activa
-        <button class="route-clear" (click)="directionsResult.set(null)" aria-label="Limpiar ruta">×</button>
+        <button class="route-clear" (click)="directionsResult.set(null)" aria-label="Limpiar ruta">
+          ×
+        </button>
       </div>
     }
-
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -509,10 +598,17 @@
   ═══════════════════════════════════════════════════════ -->
   @if (editingItem()) {
     <div class="edit-modal-backdrop" (click)="closeEditModal()">
-      <div class="edit-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Editar actividad">
+      <div
+        class="edit-modal"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-label="Editar actividad"
+      >
         <div class="edit-modal-header">
           <h3 class="edit-modal-title">✏️ Editar Actividad</h3>
-          <button class="btn-close-modal" (click)="closeEditModal()" aria-label="Cerrar modal">×</button>
+          <button class="btn-close-modal" (click)="closeEditModal()" aria-label="Cerrar modal">
+            ×
+          </button>
         </div>
 
         <div class="edit-modal-body">
@@ -536,12 +632,7 @@
 
             <div class="form-field form-field--half">
               <label class="form-label" for="editTime">Hora</label>
-              <input
-                id="editTime"
-                type="time"
-                class="form-input"
-                [(ngModel)]="editFormTime"
-              />
+              <input id="editTime" type="time" class="form-input" [(ngModel)]="editFormTime" />
             </div>
           </div>
 
@@ -564,21 +655,24 @@
                 type="button"
                 class="type-btn type-shared"
                 [class.type-btn--selected]="editFormType === 'SHARED'"
-                (click)="setEditFormType('SHARED')">
+                (click)="setEditFormType('SHARED')"
+              >
                 👥 Compartida
               </button>
               <button
                 type="button"
                 class="type-btn type-daniel"
                 [class.type-btn--selected]="editFormType === 'SOLO_DANIEL'"
-                (click)="setEditFormType('SOLO_DANIEL')">
+                (click)="setEditFormType('SOLO_DANIEL')"
+              >
                 🧑 Daniel
               </button>
               <button
                 type="button"
                 class="type-btn type-mafe"
                 [class.type-btn--selected]="editFormType === 'SOLO_MAFE'"
-                (click)="setEditFormType('SOLO_MAFE')">
+                (click)="setEditFormType('SOLO_MAFE')"
+              >
                 👩 Mafe
               </button>
             </div>
@@ -601,7 +695,8 @@
             type="button"
             class="btn-save-modal"
             (click)="saveEditItem()"
-            [disabled]="isUpdating()">
+            [disabled]="isUpdating()"
+          >
             @if (isUpdating()) {
               <span class="spinner"></span> Guardando...
             } @else {
@@ -612,7 +707,8 @@
             type="button"
             class="btn-cancel-modal"
             (click)="closeEditModal()"
-            [disabled]="isUpdating()">
+            [disabled]="isUpdating()"
+          >
             Cancelar
           </button>
         </div>
@@ -625,15 +721,16 @@
   ═══════════════════════════════════════════════════════ -->
   @if (deletingItem()) {
     <div class="delete-modal-backdrop" (click)="closeDeleteModal()">
-      <div class="delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Confirmar eliminación">
-        <div class="delete-modal-icon-badge">
-          🗑️
-        </div>
+      <div
+        class="delete-modal"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-label="Confirmar eliminación"
+      >
+        <div class="delete-modal-icon-badge">🗑️</div>
 
         <h3 class="delete-modal-title">¿Eliminar actividad?</h3>
-        <p class="delete-modal-subtitle">
-          Vas a remover esta actividad del itinerario de México.
-        </p>
+        <p class="delete-modal-subtitle">Vas a remover esta actividad del itinerario de México.</p>
 
         <div class="delete-item-preview">
           <span class="delete-item-name">{{ deletingItem()!.placeName }}</span>
@@ -649,7 +746,8 @@
             type="button"
             class="btn-confirm-delete"
             (click)="confirmDelete()"
-            [disabled]="isDeleting() === deletingItem()!.id">
+            [disabled]="isDeleting() === deletingItem()!.id"
+          >
             @if (isDeleting() === deletingItem()!.id) {
               <span class="spinner"></span> Eliminando...
             } @else {
@@ -660,12 +758,12 @@
             type="button"
             class="btn-cancel-delete"
             (click)="closeDeleteModal()"
-            [disabled]="isDeleting() === deletingItem()!.id">
+            [disabled]="isDeleting() === deletingItem()!.id"
+          >
             Cancelar
           </button>
         </div>
       </div>
     </div>
   }
-
 </section>

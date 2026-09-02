@@ -4,16 +4,19 @@
     <meta charset="utf-8" />
     <title>Trip Planner México 🇲🇽</title>
     <base href="/" />
-    
+
     <!-- Configuración dinámica inyectada por Docker -->
     <script src="assets/env.js"></script>
-    
+
     <!-- Mobile & PWA Viewport Configuration (Optimized for S25 Ultra & iPhone 17) -->
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <meta name="description" content="Planificador colaborativo e itinerario interactivo de viaje a México — Daniel &amp; Mafe" />
+    <meta
+      name="description"
+      content="Planificador colaborativo e itinerario interactivo de viaje a México — Daniel &amp; Mafe"
+    />
     <meta name="theme-color" content="#07090f" />
     <meta name="color-scheme" content="dark" />
 
@@ -24,7 +27,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="México 2025" />
+    <meta name="apple-mobile-web-app-title" content="México 2026" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <!-- Icons -->
@@ -54,7 +57,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
+          navigator.serviceWorker
+            .register('/sw.js')
             .then((reg) => console.log('[PWA] Service Worker registrado:', reg.scope))
             .catch((err) => console.warn('[PWA] Registro SW falló:', err));
         });

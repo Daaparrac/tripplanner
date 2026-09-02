@@ -1,0 +1,810 @@
+<div class="settings-page">
+  <div class="settings-container">
+    <!-- ═══════════════════════════════════════════════════════
+         HEADER
+    ═══════════════════════════════════════════════════════ -->
+    <header class="settings-header">
+      <div class="settings-header-badge">
+        <span class="badge-icon">⚙️</span>
+        <span class="badge-text">Panel de Control</span>
+      </div>
+      <h1 class="settings-title">Configuración & Perfil</h1>
+      <p class="settings-subtitle">
+        Personaliza tu experiencia, alertas y datos para
+        <strong>{{ appState.activeTrip()?.name || 'tus viajes' }}</strong>
+      </p>
+    </header>
+
+    <div class="settings-grid">
+      <!-- ═════════════════════════════════════════════════════
+           CARD 1: VIAJE ACTIVO (FLAGCDN CRISP & SELECTOR CUSTOM)
+      ═════════════════════════════════════════════════════ -->
+      <section class="settings-card trip-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <div class="card-icon flag-icon-wrap">
+              <img
+                [src]="getTripFlagUrl(appState.activeTrip(), 'w80')"
+                [alt]="getTripCountryCode(appState.activeTrip())"
+                class="flag-img"
+              />
+            </div>
+            <div>
+              <h2 class="card-title">Viaje Activo</h2>
+              <p class="card-desc">Selecciona o administra tus planes de viaje</p>
+            </div>
+          </div>
+
+          <div class="card-actions-header">
+            <button
+              type="button"
+              class="btn-action-pill btn-action-pill--primary"
+              (click)="openCreateTripModal()"
+            >
+              <span>➕ Nuevo Viaje</span>
+            </button>
+            @if (appState.activeTrip()) {
+              <button
+                type="button"
+                class="btn-action-pill"
+                (click)="openEditTripModal()"
+                title="Editar fechas y ciudades del viaje activo"
+              >
+                <span>✏️ Editar</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Custom Dropdown Selector (Compatible con PC / FlagCDN) -->
+        <div class="trip-custom-selector">
+          <label class="form-label">Cambiar viaje en curso:</label>
+
+          <div class="custom-dropdown-container">
+            <button
+              type="button"
+              class="dropdown-trigger"
+              [class.dropdown-trigger--open]="isTripDropdownOpen"
+              (click)="toggleTripDropdown()"
+              aria-haspopup="listbox"
+              [aria-expanded]="isTripDropdownOpen"
+            >
+              @if (appState.activeTrip(); as active) {
+                <div class="selected-trip-display">
+                  <div class="trip-flag-badge">
+                    <img
+                      [src]="getTripFlagUrl(active, 'w80')"
+                      [alt]="getTripCountryCode(active)"
+                      class="flag-thumb"
+                    />
+                  </div>
+                  <div class="trip-title-text">
+                    <span class="trip-display-name">{{ active.name }}</span>
+                    <span class="trip-display-dates"
+                      >{{ active.startDate }} ➜ {{ active.endDate }}</span
+                    >
+                  </div>
+                </div>
+              } @else {
+                <span class="placeholder-text">Seleccionar un viaje...</span>
+              }
+              <span class="dropdown-arrow-icon" [class.rotated]="isTripDropdownOpen">▼</span>
+            </button>
+
+            @if (isTripDropdownOpen) {
+              <div class="dropdown-menu-list" role="listbox">
+                <div class="dropdown-list-header">
+                  <span>Todos los Viajes ({{ appState.trips().length }})</span>
+                  <button type="button" class="btn-mini-add" (click)="openCreateTripModal()">
+                    + Crear
+                  </button>
+                </div>
+
+                <div class="dropdown-items-scroll">
+                  @for (trip of appState.trips(); track trip.id) {
+                    <div
+                      class="dropdown-item-row"
+                      [class.dropdown-item-row--active]="appState.activeTripId() === trip.id"
+                      (click)="selectTrip(trip.id)"
+                      role="option"
+                    >
+                      <div class="item-flag-box">
+                        <img
+                          [src]="getTripFlagUrl(trip, 'w80')"
+                          [alt]="getTripCountryCode(trip)"
+                          class="item-flag-img"
+                        />
+                      </div>
+                      <div class="item-details">
+                        <span class="item-name">{{ trip.name }}</span>
+                        <span class="item-meta"
+                          >{{ trip.startDate }} - {{ trip.endDate }} •
+                          {{ trip.destinations?.length || 0 }} paradas</span
+                        >
+                      </div>
+                      @if (appState.activeTripId() === trip.id) {
+                        <span class="active-check">✓</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Metadatos y Detalles del Viaje Activo -->
+        @if (appState.activeTrip(); as active) {
+          <div class="active-trip-meta">
+            <div class="meta-item">
+              <span class="meta-icon">📅</span>
+              <div class="meta-text">
+                <span class="meta-label">Fechas del Viaje</span>
+                <span class="meta-value">{{ active.startDate }} ➜ {{ active.endDate }}</span>
+              </div>
+            </div>
+
+            <div class="meta-item">
+              <div class="meta-flag-wrap">
+                <img
+                  [src]="getTripFlagUrl(active, 'w80')"
+                  [alt]="getTripCountryCode(active)"
+                  class="meta-flag-img"
+                />
+              </div>
+              <div class="meta-text">
+                <span class="meta-label">País / Destino</span>
+                <span class="meta-value">{{
+                  getCountryName(active.countryCode) || active.name
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="trip-destinations-box">
+            <div class="destinations-header-row">
+              <span class="destinations-label">Ciudades y Tramos del Itinerario:</span>
+              <button type="button" class="btn-text-edit" (click)="openEditTripModal()">
+                ✏️ Administrar Tramos
+              </button>
+            </div>
+
+            @if (active.destinationsList && active.destinationsList.length > 0) {
+              <div class="destinations-stages-summary-list">
+                @for (stage of active.destinationsList; track stage.name) {
+                  <div
+                    class="stage-summary-chip"
+                    [style.border-color]="stage.color + '55'"
+                    [style.background]="stage.color + '18'"
+                  >
+                    <span class="stage-chip-emoji">{{ stage.emoji || '📍' }}</span>
+                    <div class="stage-chip-info">
+                      <strong class="stage-chip-name" [style.color]="stage.color">
+                        {{ stage.name }} ({{ stage.shortCode }})
+                      </strong>
+                      <span class="stage-chip-dates">{{ stage.startDate }} ➜ {{ stage.endDate }}</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else if (active.destinations && active.destinations.length > 0) {
+              <div class="destinations-tags-list">
+                @for (dest of active.destinations; track dest) {
+                  <span class="dest-tag">📍 {{ dest }}</span>
+                }
+              </div>
+            } @else {
+              <p class="no-destinations-hint">
+                No has agregado tramos todavía. Haz clic en <em>"Editar"</em> para añadir ciudades.
+              </p>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- ═════════════════════════════════════════════════════
+           CARD 2: PERFIL DE USUARIO
+      ═════════════════════════════════════════════════════ -->
+      <section class="settings-card profile-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-icon">👤</span>
+            <div>
+              <h2 class="card-title">Mi Perfil</h2>
+              <p class="card-desc">Información de la cuenta activa</p>
+            </div>
+          </div>
+          @if (user(); as u) {
+            <span
+              class="role-pill"
+              [style.backgroundColor]="u.color + '22'"
+              [style.borderColor]="u.color"
+              [style.color]="u.color"
+            >
+              <span class="role-pill-dot" [style.backgroundColor]="u.color"></span>
+              {{ u.role === 'DANIEL' ? 'Daniel' : u.role === 'MAFE' ? 'Mafe' : 'Invitado' }}
+            </span>
+          }
+        </div>
+
+        @if (user(); as u) {
+          <div class="profile-content">
+            <div class="avatar-wrapper" [style.borderColor]="u.color">
+              <img
+                [src]="u.picture || 'https://api.dicebear.com/7.x/notionists/svg?seed=' + u.name"
+                [alt]="u.name"
+                class="avatar-img"
+              />
+              <span class="avatar-badge">{{ u.emoji }}</span>
+            </div>
+
+            <div class="profile-details">
+              <h3 class="profile-name">{{ u.name }}</h3>
+              <p class="profile-email">{{ u.email }}</p>
+
+              <div class="profile-tags">
+                <span class="profile-tag">
+                  <span class="tag-icon">✈️</span>
+                  <span>Viajero Activo</span>
+                </span>
+                <span class="profile-tag">
+                  <span class="tag-icon">🔒</span>
+                  <span>Google Auth</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <div class="guest-profile-state">
+            <div class="guest-avatar">👤</div>
+            <div class="guest-info">
+              <h3>Modo Invitado</h3>
+              <p>
+                Inicia sesión con tu cuenta de Google para sincronizar itinerarios y recibir alertas
+                en tiempo real.
+              </p>
+            </div>
+            <button type="button" class="btn-primary" (click)="auth.openLoginModal()">
+              <span>🔑 Iniciar Sesión</span>
+            </button>
+          </div>
+        }
+      </section>
+
+      <!-- ═════════════════════════════════════════════════════
+           CARD 3: TEMA Y APARIENCIA
+      ═════════════════════════════════════════════════════ -->
+      <section class="settings-card theme-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-icon">🎨</span>
+            <div>
+              <h2 class="card-title">Tema & Pantalla</h2>
+              <p class="card-desc">Optimizado para pantallas OLED (Galaxy S25 Ultra / iPhone 17)</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="theme-options-grid">
+          <button
+            type="button"
+            class="theme-card-option"
+            [class.theme-card-option--active]="theme.themeMode() === 'dark'"
+            (click)="setTheme('dark')"
+          >
+            <div class="theme-preview theme-preview--dark">
+              <div class="preview-bar"></div>
+              <div class="preview-dot"></div>
+            </div>
+            <div class="theme-info">
+              <span class="theme-label">🌙 OLED Dark</span>
+              <span class="theme-hint">Negro puro (#000000)</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="theme-card-option"
+            [class.theme-card-option--active]="theme.themeMode() === 'light'"
+            (click)="setTheme('light')"
+          >
+            <div class="theme-preview theme-preview--light">
+              <div class="preview-bar"></div>
+              <div class="preview-dot"></div>
+            </div>
+            <div class="theme-info">
+              <span class="theme-label">☀️ Modo Claro</span>
+              <span class="theme-hint">Limpio y legible</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            class="theme-card-option"
+            [class.theme-card-option--active]="theme.themeMode() === 'auto'"
+            (click)="setTheme('auto')"
+          >
+            <div class="theme-preview theme-preview--auto">
+              <div class="preview-bar"></div>
+              <div class="preview-dot"></div>
+            </div>
+            <div class="theme-info">
+              <span class="theme-label">⚙️ Automático</span>
+              <span class="theme-hint">Sincroniza con tu sistema</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- ═════════════════════════════════════════════════════
+           CARD 4: RADAR DE PROXIMIDAD (DANI & MAFE)
+      ═════════════════════════════════════════════════════ -->
+      <section class="settings-card proximity-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-icon">📡</span>
+            <div>
+              <h2 class="card-title">Radar de Proximidad</h2>
+              <p class="card-desc">Alerta de separación simultánea entre Daniel y Mafe</p>
+            </div>
+          </div>
+          <div class="distance-badge">
+            <span class="distance-number">{{ pendingProximityValue }}</span>
+            <span class="distance-unit">km</span>
+          </div>
+        </div>
+
+        <div class="proximity-body">
+          <p class="proximity-explanation">
+            Si Dani y Mafe tienen actividades programadas al mismo tiempo en lugares cuya distancia
+            supera este umbral, el sistema mostrará una advertencia de seguridad en el itinerario y
+            mapa.
+          </p>
+
+          <!-- Slider de Distancia -->
+          <div class="slider-container">
+            <div class="slider-track-wrap">
+              <input
+                type="range"
+                min="1"
+                max="25"
+                step="0.5"
+                [ngModel]="pendingProximityValue"
+                (ngModelChange)="onProximitySliderChange($event)"
+                class="proximity-range-input"
+                aria-label="Umbral de proximidad en kilómetros"
+              />
+            </div>
+
+            <div class="slider-marks-container">
+              <div
+                class="slider-mark-point slider-mark-point--start"
+                [class.slider-mark-point--active]="pendingProximityValue === 1"
+                style="left: 0%"
+                (click)="setPresetDistance(1)"
+                title="1 km (Mínimo)"
+              >
+                <div class="mark-line" [class.mark-line--active]="pendingProximityValue === 1"></div>
+                <span class="mark-text" [class.mark-text--active]="pendingProximityValue === 1">1 km</span>
+              </div>
+              <div
+                class="slider-mark-point slider-mark-point--star"
+                [class.slider-mark-point--active]="pendingProximityValue === 5"
+                style="left: 16.67%"
+                (click)="setPresetDistance(5)"
+                title="5 km (Recomendado)"
+              >
+                <div class="mark-line" [class.mark-line--active]="pendingProximityValue === 5"></div>
+                <span class="mark-text" [class.mark-text--active]="pendingProximityValue === 5">5km ⭐</span>
+              </div>
+              <div
+                class="slider-mark-point"
+                [class.slider-mark-point--active]="pendingProximityValue === 10"
+                style="left: 37.5%"
+                (click)="setPresetDistance(10)"
+                title="10 km"
+              >
+                <div class="mark-line" [class.mark-line--active]="pendingProximityValue === 10"></div>
+                <span class="mark-text" [class.mark-text--active]="pendingProximityValue === 10">10 km</span>
+              </div>
+              <div
+                class="slider-mark-point"
+                [class.slider-mark-point--active]="pendingProximityValue === 15"
+                style="left: 58.33%"
+                (click)="setPresetDistance(15)"
+                title="15 km"
+              >
+                <div class="mark-line" [class.mark-line--active]="pendingProximityValue === 15"></div>
+                <span class="mark-text" [class.mark-text--active]="pendingProximityValue === 15">15 km</span>
+              </div>
+              <div
+                class="slider-mark-point slider-mark-point--end"
+                [class.slider-mark-point--active]="pendingProximityValue === 25"
+                style="left: 100%"
+                (click)="setPresetDistance(25)"
+                title="25 km (Máximo)"
+              >
+                <div class="mark-line" [class.mark-line--active]="pendingProximityValue === 25"></div>
+                <span class="mark-text" [class.mark-text--active]="pendingProximityValue === 25">25 km</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botones de Acceso Rápido -->
+          <div class="preset-chips">
+            <span class="preset-label">Preajustes:</span>
+            <button
+              type="button"
+              class="preset-chip"
+              [class.preset-chip--active]="pendingProximityValue === 2"
+              (click)="setPresetDistance(2)"
+            >
+              🚶 2 km (Caminata)
+            </button>
+            <button
+              type="button"
+              class="preset-chip"
+              [class.preset-chip--active]="pendingProximityValue === 5"
+              (click)="setPresetDistance(5)"
+            >
+              🚗 5 km (Recomendado)
+            </button>
+            <button
+              type="button"
+              class="preset-chip"
+              [class.preset-chip--active]="pendingProximityValue === 15"
+              (click)="setPresetDistance(15)"
+            >
+              🚕 15 km (Amplio)
+            </button>
+            <button
+              type="button"
+              class="preset-chip"
+              [class.preset-chip--active]="pendingProximityValue === 25"
+              (click)="setPresetDistance(25)"
+            >
+              ⚡ 25 km (Máx)
+            </button>
+          </div>
+
+          <!-- Acciones de Guardado -->
+          <div class="proximity-actions">
+            @if (saveSuccessMessage) {
+              <div class="save-toast-msg">
+                <span>✅ {{ saveSuccessMessage }}</span>
+              </div>
+            }
+
+            <button
+              type="button"
+              class="btn-save-proximity"
+              [class.btn-save-proximity--dirty]="isProximityChanged"
+              [disabled]="!isProximityChanged || isSavingProximity"
+              (click)="saveProximity()"
+            >
+              @if (isSavingProximity) {
+                <span class="spinner">⏳</span>
+                <span>Guardando cambios...</span>
+              } @else if (isProximityChanged) {
+                <span>💾 Guardar Umbral de {{ pendingProximityValue }} km</span>
+              } @else {
+                <span>✓ Umbral al día</span>
+              }
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════════════════════════════════════════════════
+           CARD 5: SESIÓN Y ACCIONES
+      ═════════════════════════════════════════════════════ -->
+      <section class="settings-card session-card">
+        <div class="card-header">
+          <div class="card-title-wrap">
+            <span class="card-icon">🛡️</span>
+            <div>
+              <h2 class="card-title">Seguridad & Sesión</h2>
+              <p class="card-desc">Control de acceso y estado del aplicativo</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="session-actions">
+          @if (user()) {
+            <button type="button" class="btn-logout-danger" (click)="logout()">
+              <span class="btn-icon">🚪</span>
+              <span class="btn-text">Cerrar Sesión</span>
+            </button>
+          } @else {
+            <button type="button" class="btn-primary" (click)="auth.openLoginModal()">
+              <span class="btn-icon">🔑</span>
+              <span class="btn-text">Iniciar Sesión con Google</span>
+            </button>
+          }
+
+          <div class="app-info-footer">
+            <span>Trip Planner • Dani & Mafe ❤️</span>
+            <span class="app-build-tag">v2.1.0 • PWA Ready</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ═════════════════════════════════════════════════════════
+       MODAL: CREAR / EDITAR VIAJE
+  ═════════════════════════════════════════════════════════ -->
+  @if (isTripModalOpen) {
+    <div class="modal-overlay" (click)="closeTripModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-flag-wrap">
+              <img
+                [src]="getCountryFlagUrlByCode(tripForm.countryCode, 'w80')"
+                [alt]="tripForm.countryCode"
+                class="modal-flag-img"
+              />
+            </div>
+            <div>
+              <h3 class="modal-title">{{ isEditing ? 'Editar Viaje' : 'Crear Nuevo Viaje' }}</h3>
+              <p class="modal-subtitle">Completa los detalles de tu próxima aventura</p>
+            </div>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="closeTripModal()">✕</button>
+        </div>
+
+        @if (tripModalError) {
+          <div class="modal-error-alert">
+            <span>⚠️ {{ tripModalError }}</span>
+          </div>
+        }
+
+        <div class="modal-body">
+          <!-- Nombre del Viaje -->
+          <div class="form-group">
+            <label class="input-label" for="tripName">Nombre del Viaje *</label>
+            <input
+              id="tripName"
+              type="text"
+              class="modal-input"
+              [(ngModel)]="tripForm.name"
+              placeholder="Ej: Japón Sakura 2026, Europa de Verano, etc."
+            />
+          </div>
+
+          <!-- País (FlagCDN Selector) -->
+          <div class="form-group">
+            <label class="input-label">País de Destino *</label>
+
+            <div class="country-picker-box">
+              <div class="country-search-bar">
+                <span class="search-icon">🔍</span>
+                <input
+                  type="text"
+                  class="country-search-input"
+                  [(ngModel)]="countrySearchQuery"
+                  placeholder="Buscar país (ej. Colombia, Francia, Japón)..."
+                />
+              </div>
+
+              <div class="country-chips-grid">
+                @for (country of filteredCountries.slice(0, 30); track country.code) {
+                  <button
+                    type="button"
+                    class="country-chip-btn"
+                    [class.country-chip-btn--active]="
+                      tripForm.countryCode === country.code.toLowerCase()
+                    "
+                    (click)="selectFormCountry(country.code)"
+                  >
+                    <img
+                      [src]="getCountryFlagUrlByCode(country.code, 'w40')"
+                      [alt]="country.code"
+                      class="chip-flag"
+                    />
+                    <span class="chip-name">{{ country.name }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Fechas de Inicio y Fin del Viaje -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="input-label" for="startDate">Fecha de Inicio *</label>
+              <input
+                id="startDate"
+                type="date"
+                class="modal-input"
+                [(ngModel)]="tripForm.startDate"
+              />
+            </div>
+            <div class="form-group">
+              <label class="input-label" for="endDate">Fecha de Fin *</label>
+              <input id="endDate" type="date" class="modal-input" [(ngModel)]="tripForm.endDate" />
+            </div>
+          </div>
+
+          <!-- Sección de Ciudades y Tramos de Estadía -->
+          <div class="form-group stages-section-box">
+            <div class="stages-header-bar">
+              <label class="input-label mb-0">Ciudades y Tramos del Itinerario</label>
+              <span class="stages-help-text">Define la ciudad, fechas, diminutivo (slug) y color de cada tramo</span>
+            </div>
+
+            <!-- Lista de Tramos Configurados -->
+            @if (tripForm.destinationsList.length > 0) {
+              <div class="stages-cards-list">
+                @for (stage of tripForm.destinationsList; track stage.name; let idx = $index) {
+                  <div class="stage-card" [style.border-left-color]="stage.color">
+                    <div class="stage-card-left">
+                      <span class="stage-card-emoji">{{ stage.emoji || '📍' }}</span>
+                      <div class="stage-card-meta">
+                        <div class="stage-title-row">
+                          <strong class="stage-title">{{ stage.name }}</strong>
+                          <span
+                            class="stage-code-badge"
+                            [style.background]="stage.color + '25'"
+                            [style.color]="stage.color"
+                            [style.border-color]="stage.color + '55'"
+                          >
+                            {{ stage.shortCode }}
+                          </span>
+                        </div>
+                        <span class="stage-date-range">📅 {{ stage.startDate }} ➜ {{ stage.endDate }}</span>
+                      </div>
+                    </div>
+                    <button type="button" class="btn-stage-remove" (click)="removeStage(idx)" title="Remover tramo">✕</button>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Formulario de Añadir Tramo -->
+            <div class="add-stage-panel">
+              <span class="add-stage-title">+ Añadir Tramo de Ciudad</span>
+
+              <div class="add-stage-row-1">
+                <div class="stage-input-field flex-2">
+                  <label class="sub-label">Nombre de Ciudad</label>
+                  <input
+                    type="text"
+                    class="modal-input"
+                    [(ngModel)]="newStageName"
+                    placeholder="Ej: Ciudad de México, Kyoto, Cancún..."
+                  />
+                </div>
+                <div class="stage-input-field flex-1">
+                  <label class="sub-label">Diminutivo / Tag</label>
+                  <input
+                    type="text"
+                    class="modal-input text-uppercase"
+                    maxlength="6"
+                    [(ngModel)]="newStageCode"
+                    placeholder="Ej: CDMX"
+                  />
+                </div>
+                <div class="stage-input-field flex-emoji">
+                  <label class="sub-label">Emoji</label>
+                  <input
+                    type="text"
+                    class="modal-input text-center"
+                    maxlength="3"
+                    [(ngModel)]="newStageEmoji"
+                    placeholder="📍"
+                  />
+                </div>
+              </div>
+
+              <!-- Selector de Rango de Fechas Interactivo (Un solo calendario) -->
+              <div class="stage-range-picker-container">
+                <div class="range-picker-header">
+                  <span class="sub-label">Fechas de Estadía del Tramo</span>
+                  <span class="range-picker-summary-pill" [class.summary-pill--active]="newStageStartDate">
+                    {{ formatStageDateSummary() }}
+                  </span>
+                </div>
+
+                <div class="calendar-range-card">
+                  <!-- Barra de Navegación del Mes -->
+                  <div class="calendar-nav-bar">
+                    <button type="button" class="btn-cal-nav" (click)="prevCalMonth()" title="Mes anterior">◀</button>
+                    <span class="cal-month-title">{{ calMonthLabel }}</span>
+                    <button type="button" class="btn-cal-nav" (click)="nextCalMonth()" title="Mes siguiente">▶</button>
+                  </div>
+
+                  <!-- Días de la semana -->
+                  <div class="calendar-weekdays-grid">
+                    <span>Lu</span>
+                    <span>Ma</span>
+                    <span>Mi</span>
+                    <span>Ju</span>
+                    <span>Vi</span>
+                    <span>Sá</span>
+                    <span>Do</span>
+                  </div>
+
+                  <!-- Cuadrícula de días -->
+                  <div class="calendar-days-grid">
+                    @for (cell of calendarDays; track cell.dateStr) {
+                      <button
+                        type="button"
+                        class="cal-day-cell"
+                        [class.cal-day-cell--other-month]="!cell.isCurrentMonth"
+                        [class.cal-day-cell--disabled]="isDateDisabled(cell.dateStr)"
+                        [class.cal-day-cell--occupied]="getStageOccupyingDate(cell.dateStr) && !isDateStart(cell.dateStr) && !isDateEnd(cell.dateStr) && !isDateInRange(cell.dateStr)"
+                        [class.cal-day-cell--start]="isDateStart(cell.dateStr)"
+                        [class.cal-day-cell--end]="isDateEnd(cell.dateStr)"
+                        [class.cal-day-cell--in-range]="isDateInRange(cell.dateStr)"
+                        [style.--stage-c]="newStageColor"
+                        [style.--occupied-c]="getStageOccupyingDate(cell.dateStr)?.color"
+                        [disabled]="isDateDisabled(cell.dateStr)"
+                        [title]="getDateCellTooltip(cell.dateStr)"
+                        (click)="onSelectCalendarDay(cell.dateStr)"
+                      >
+                        <span class="cal-day-num">{{ cell.dayNumber }}</span>
+                        @if (getStageOccupyingDate(cell.dateStr); as occStage) {
+                          <span
+                            class="occupied-indicator-dot"
+                            [style.background]="occStage.color"
+                            [title]="occStage.name + ' (' + occStage.shortCode + ')'"
+                          ></span>
+                        }
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- Selector de Color -->
+              <div class="stage-color-picker-row">
+                <span class="sub-label">Color del Tag:</span>
+                <div class="color-presets-list">
+                  @for (c of PRESET_COLORS; track c) {
+                    <button
+                      type="button"
+                      class="color-circle-btn"
+                      [style.background]="c"
+                      [class.color-circle-btn--active]="newStageColor === c"
+                      (click)="setStageColor(c)"
+                      aria-label="Color predeterminado"
+                    ></button>
+                  }
+                </div>
+                <input
+                  type="color"
+                  class="custom-color-input"
+                  [(ngModel)]="newStageColor"
+                  title="Color personalizado"
+                />
+              </div>
+
+              <button
+                type="button"
+                class="btn-confirm-add-stage"
+                [disabled]="!newStageName.trim()"
+                (click)="addStage()"
+              >
+                + Añadir Tramo al Viaje
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeTripModal()">Cancelar</button>
+          <button type="button" class="btn-submit" [disabled]="isSavingTrip" (click)="saveTrip()">
+            @if (isSavingTrip) {
+              <span class="spinner">⏳</span>
+              <span>Guardando...</span>
+            } @else {
+              <span>{{ isEditing ? 'Guardar Cambios' : 'Crear Viaje' }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

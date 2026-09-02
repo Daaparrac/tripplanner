@@ -17,7 +17,7 @@ import { AuthService } from '../../services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (authService.isAuthModalOpen()) {
-      <div class="login-modal-backdrop" (click)="authService.closeLoginModal()">
+      <div class="login-modal-backdrop" (click)="authService.isLoggedIn() ? authService.closeLoginModal() : null">
         <div
           class="login-modal-dialog"
           (click)="$event.stopPropagation()"
@@ -78,6 +78,7 @@ import { AuthService } from '../../services/auth.service';
 
           <footer class="login-modal-footer">
             <button
+              *ngIf="authService.isLoggedIn()"
               type="button"
               class="btn-close-modal"
               (click)="authService.closeLoginModal()">

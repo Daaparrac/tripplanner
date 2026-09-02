@@ -7,9 +7,10 @@ import type { DestinationType } from '../config/constants';
 export interface TripAttributes {
   id: string;
   name: string;
+  countryCode?: string; // ISO 3166-1 alpha-2, ej: 'MX', 'CO', 'JP', 'ES'
   startDate: string;        // DATEONLY → string en Sequelize (YYYY-MM-DD)
   endDate: string;
-  destinations: DestinationType[];
+  destinations: string[];
   /**
    * Umbral de proximidad configurable por viaje (km).
    * Si la distancia entre Daniel y Mafe supera este valor, se emite una alerta.
@@ -22,7 +23,7 @@ export interface TripAttributes {
 
 /** Campos opcionales al crear (se generan automáticamente) */
 export interface TripCreationAttributes
-  extends Optional<TripAttributes, 'id' | 'proximityThresholdKm' | 'createdAt' | 'updatedAt'> {}
+  extends Optional<TripAttributes, 'id' | 'countryCode' | 'proximityThresholdKm' | 'createdAt' | 'updatedAt'> {}
 
 // ── Clase del Modelo ──────────────────────────────────────────────────────────
 
@@ -32,9 +33,10 @@ export class Trip
 {
   declare id: string;
   declare name: string;
+  declare countryCode?: string;
   declare startDate: string;
   declare endDate: string;
-  declare destinations: DestinationType[];
+  declare destinations: string[];
   declare proximityThresholdKm: number;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
@@ -85,6 +87,17 @@ Trip.init(
         len: { args: [1, 200], msg: 'Trip name must be between 1 and 200 characters' },
       },
     },
+    countryCode: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+      defaultValue: 'mx',
+      references: {
+        model: 'countries',
+        key: 'code',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
+    },
     startDate: {
       type: DataTypes.DATEONLY,
       allowNull: false,
@@ -110,9 +123,8 @@ Trip.init(
       defaultValue: [],
       validate: {
         isValidDestinations(value: unknown) {
-          const valid = ['CDMX', 'GUADALAJARA', 'CANCUN'];
-          if (!Array.isArray(value) || value.some((d) => !valid.includes(d))) {
-            throw new Error(`destinations must be an array of: ${valid.join(', ')}`);
+          if (!Array.isArray(value) || value.some((d) => typeof d !== 'string')) {
+            throw new Error('destinations must be an array of strings');
           }
         },
       },
