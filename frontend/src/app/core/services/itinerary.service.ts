@@ -36,7 +36,13 @@ const getApiBaseUrl = (): string => {
     window.location.hostname !== 'localhost' &&
     window.location.hostname !== '127.0.0.1'
   ) {
-    return `http://${window.location.hostname}`;
+    // Production: warn that env.js was not injected and fall back to relative /api
+    // This lets Nginx or Cloud Run proxy handle it, avoiding mixed-content errors
+    console.warn(
+      '[ItineraryService] window.__env.apiUrl not found — falling back to relative /api. ' +
+      'Ensure entrypoint.sh injects API_URL into assets/env.js.'
+    );
+    return '';
   }
   return 'http://localhost:3002';
 };

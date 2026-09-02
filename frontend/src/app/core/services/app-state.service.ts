@@ -20,13 +20,22 @@ export class AppStateService {
   });
 
   private getApiBaseUrl(): string {
+    const envUrl = (globalThis as unknown as { __env?: { apiUrl: string } }).__env?.apiUrl;
+    if (envUrl) {
+      return envUrl;
+    }
+
     if (
       typeof window !== 'undefined' &&
       window.location.hostname &&
       window.location.hostname !== 'localhost' &&
       window.location.hostname !== '127.0.0.1'
     ) {
-      return `http://${window.location.hostname}`;
+      console.warn(
+        '[AppStateService] window.__env.apiUrl not found — falling back to relative /api. ' +
+        'Ensure entrypoint.sh injects API_URL into assets/env.js.'
+      );
+      return '';
     }
     return 'http://localhost:3002';
   }
